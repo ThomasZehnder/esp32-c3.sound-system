@@ -150,9 +150,13 @@ function updateSequenceTagOptions(row, sounds, ultrasounds) {
     }
 
     const selectedTag = tag.value;
-    const options = kind.value === 'ultrasound'
-        ? createUltrasoundOptions(ultrasounds, selectedTag)
-        : createSoundOptions(sounds, selectedTag);
+    let options = '';
+
+    if (kind.value === 'ultrasound') {
+        options = createUltrasoundOptions(ultrasounds, selectedTag);
+    } else if (kind.value === 'sound') {
+        options = createSoundOptions(sounds, selectedTag);
+    }
 
     tag.innerHTML = options;
     if (!tag.value && tag.options.length > 0) {
@@ -217,7 +221,7 @@ function renderSequenceEditor(container, config) {
         const durationSeconds = durationMs / 1000;
         const tagOptions = kind === 'ultrasound'
             ? createUltrasoundOptions(ultrasounds, tag)
-            : createSoundOptions(sounds, tag);
+            : (kind === 'sound' ? createSoundOptions(sounds, tag) : '');
 
         return `
             <div class="sequence-editor-row" data-step-index="${index}">
