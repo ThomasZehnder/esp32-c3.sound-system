@@ -209,6 +209,7 @@ void soundConfigJson()
     output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("")) + "\",";
     output += "\"sequenceRunning\":" + String(isSoundSequenceRunning() ? "true" : "false") + ",";
     output += "\"volume\":" + String(getDfPlayerVolume()) + ",";
+    output += "\"ultrasoundVolumePercent\":" + String(getNormalizedUltrasoundVolumePercent()) + ",";
     output += "\"volumeMin\":" + String(getDfPlayerMinVolume()) + ",";
     output += "\"volumeMax\":" + String(getDfPlayerMaxVolume());
     output += "}";

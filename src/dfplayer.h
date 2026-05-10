@@ -18,6 +18,7 @@ bool isSoundSequenceLoadedFromFilesystem();
 uint8_t getDfPlayerVolume();
 uint8_t getDfPlayerMinVolume();
 uint8_t getDfPlayerMaxVolume();
+uint8_t getNormalizedUltrasoundVolumePercent();
 bool setDfPlayerVolume(uint8_t volume);
 bool startSoundSequence();
 void stopSoundSequence();

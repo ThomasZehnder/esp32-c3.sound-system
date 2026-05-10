@@ -202,12 +202,14 @@ bool playResolvedSound(const SoundDefinition &definition)
 
 bool playResolvedUltrasound(const UltrasoundSequenceDefinition &definition, uint32_t durationMs)
 {
+    const uint8_t normalizedVolumePercent = getNormalizedUltrasoundVolumePercent();
+
     if (definition.randomMode)
     {
-        return playRandomUltrasound(definition.minFrequencyHz, definition.maxFrequencyHz, 100, durationMs);
+        return playRandomUltrasound(definition.minFrequencyHz, definition.maxFrequencyHz, normalizedVolumePercent, durationMs);
     }
 
-    return playUltrasound(definition.minFrequencyHz, 100, durationMs);
+    return playUltrasound(definition.minFrequencyHz, normalizedVolumePercent, durationMs);
 }
 
 bool sequenceRequiresDfPlayer()
@@ -419,6 +421,11 @@ uint8_t getDfPlayerMinVolume()
 uint8_t getDfPlayerMaxVolume()
 {
     return DFPLAYER_MAX_VOLUME;
+}
+
+uint8_t getNormalizedUltrasoundVolumePercent()
+{
+    return static_cast<uint8_t>((static_cast<uint16_t>(currentVolume) * 10U + (DFPLAYER_MAX_VOLUME / 2U)) / DFPLAYER_MAX_VOLUME);
 }
 
 bool setDfPlayerVolume(uint8_t volume)

@@ -594,6 +594,7 @@ function wireUltrasoundControls(article) {
     const minFrequencyInput = article.querySelector('#ultrasoundMinFrequency');
     const maxFrequencyInput = article.querySelector('#ultrasoundMaxFrequency');
     const volumeInput = article.querySelector('#ultrasoundVolume');
+    const volumeValue = article.querySelector('#ultrasoundVolumeValue');
     const durationInput = article.querySelector('#ultrasoundDuration');
     const startButton = article.querySelector('#ultrasoundStartButton');
     const randomStartButton = article.querySelector('#ultrasoundRandomStartButton');
@@ -603,6 +604,13 @@ function wireUltrasoundControls(article) {
 
     if (!statusElement || !frequencyInput || !minFrequencyInput || !maxFrequencyInput || !volumeInput || !durationInput || !startButton || !randomStartButton || !stopButton || !refreshButton) {
         return;
+    }
+
+    if (volumeValue) {
+        volumeValue.textContent = volumeInput.value;
+        volumeInput.addEventListener('input', () => {
+            volumeValue.textContent = volumeInput.value;
+        });
     }
 
     async function startFixedUltrasound(frequency, label) {
