@@ -10,6 +10,19 @@
 // ====== PIN CONFIG ======
 #define LED_PIN 8 // blue led on ESP32-C3-DevKitM-1, GPIO8, is connected to GND via a resistor, so HIGH turns it ON
 
+namespace
+{
+constexpr uint8_t DFPLAYER_INIT_ATTEMPTS = 4;
+constexpr uint32_t DFPLAYER_INITIAL_DELAY_MS = 750;
+constexpr uint32_t DFPLAYER_RETRY_DELAY_MS = 500;
+
+void logBootStep(const String &message)
+{
+    Serial.print("[BOOT] ");
+    Serial.println(message);
+}
+}
+
 // ====== VARIABLES ======
 unsigned long lastBlink = 0;
 bool ledState = false;
@@ -27,15 +40,36 @@ void setup()
     }
     delay(200);
 
+    logBootStep("setup start");
+
     pinMode(LED_PIN, OUTPUT);
 
     // Init display
+    logBootStep("init display");
     initDisplay();
     renderDisplay("ESP32-C3 OLED", "Init OK", "", "");
 
-    initDfPlayer();
+    logBootStep("prepare DFPlayer init");
+    delay(DFPLAYER_INITIAL_DELAY_MS);
+
+    for (uint8_t attempt = 1; attempt <= DFPLAYER_INIT_ATTEMPTS && !isDfPlayerReady(); ++attempt)
+    {
+        logBootStep("DFPlayer init attempt " + String(attempt) + "/" + String(DFPLAYER_INIT_ATTEMPTS));
+        if (attempt > 1)
+        {
+            renderDisplay("ESP32-C3 OLED", "DFP retry", "Attempt " + String(attempt), "Recovering...");
+            delay(DFPLAYER_RETRY_DELAY_MS);
+        }
+
+        initDfPlayer();
+    }
+
+    logBootStep(isDfPlayerReady() ? "DFPlayer ready" : "DFPlayer unavailable");
+
+    logBootStep("init ultrasound");
     initUltrasoundPwm();
 
+    logBootStep("start WiFi");
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID_1, WIFI_PASSWORD_1);
 
@@ -63,6 +97,7 @@ void setup()
         Serial.println("WiFi connection failed.");
     }
 
+    logBootStep("mount LittleFS");
     filesystemMounted = LittleFS.begin(true);
     if (filesystemMounted)
     {
@@ -78,6 +113,7 @@ void setup()
         Serial.println("LittleFS mount failed.");
     }
 
+    logBootStep("setup done");
     Serial.println("Setup done.");
 }
 

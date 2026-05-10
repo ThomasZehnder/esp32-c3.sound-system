@@ -173,7 +173,11 @@ bool playResolvedSound(const SoundDefinition &definition)
 void initDfPlayer()
 {
     loadDefaultSoundSequence();
+    dfPlayerReady = false;
+    dfPlayerSerial.end();
+    delay(50);
     dfPlayerSerial.begin(9600, SERIAL_8N1, DFPLAYER_RX_PIN, DFPLAYER_TX_PIN);
+    delay(150);
 
     if (!dfPlayer.begin(dfPlayerSerial, true, true))
     {
