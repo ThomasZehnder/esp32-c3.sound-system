@@ -8,12 +8,12 @@
     {
       "kind": "pause",
       "tag": "",
-      "durationMs": 1401,
+      "durationMs": 2,
       "description": "Pause step"
     },
     {
-      "kind": "sound",
-      "tag": "lion",
+      "kind": "ultrasound",
+      "tag": "us-8k",
       "durationMs": 5000,
       "description": "Löwen Gebrüll"
     },

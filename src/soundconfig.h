@@ -29,6 +29,11 @@ struct UltrasoundSequenceDefinition
     bool randomMode;
 };
 
+struct SoundSequenceSettings
+{
+    uint8_t startVolumePercent;
+};
+
 constexpr size_t MAX_SOUND_SEQUENCE_STEPS = 12;
 
 // Define sound definitions https://pixabay.com/de/sound-effects

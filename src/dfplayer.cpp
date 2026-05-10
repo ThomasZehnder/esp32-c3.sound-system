@@ -14,6 +14,7 @@ constexpr int DFPLAYER_TX_PIN = 4;
 constexpr uint8_t DFPLAYER_MIN_VOLUME = 0;
 constexpr uint8_t DFPLAYER_MAX_VOLUME = 30;
 constexpr uint8_t DFPLAYER_VOLUME = 10;
+constexpr uint8_t DEFAULT_SEQUENCE_START_VOLUME_PERCENT = 33;
 constexpr size_t SOUND_STEP_KIND_BUFFER_LENGTH = 16;
 constexpr size_t SOUND_STEP_TAG_BUFFER_LENGTH = 24;
 constexpr size_t SOUND_STEP_DESCRIPTION_BUFFER_LENGTH = 80;
@@ -33,6 +34,33 @@ char runtimeSequenceTags[MAX_SOUND_SEQUENCE_STEPS][SOUND_STEP_TAG_BUFFER_LENGTH]
 char runtimeSequenceDescriptions[MAX_SOUND_SEQUENCE_STEPS][SOUND_STEP_DESCRIPTION_BUFFER_LENGTH];
 size_t runtimeSequenceCount = 0;
 bool sequenceLoadedFromFilesystem = false;
+SoundSequenceSettings sequenceSettings = {DEFAULT_SEQUENCE_START_VOLUME_PERCENT};
+
+uint8_t clampPercent(int value)
+{
+    if (value < 0)
+    {
+        return 0;
+    }
+
+    if (value > 100)
+    {
+        return 100;
+    }
+
+    return static_cast<uint8_t>(value);
+}
+
+uint8_t volumeToPercent(uint8_t volume)
+{
+    return static_cast<uint8_t>((static_cast<uint16_t>(volume) * 100U + (DFPLAYER_MAX_VOLUME / 2U)) / DFPLAYER_MAX_VOLUME);
+}
+
+uint8_t percentToVolume(uint8_t volumePercent)
+{
+    const uint8_t clampedPercent = clampPercent(volumePercent);
+    return static_cast<uint8_t>((static_cast<uint16_t>(clampedPercent) * DFPLAYER_MAX_VOLUME + 50U) / 100U);
+}
 
 const SoundDefinition *findSoundDefinition(const String &soundName)
 {
@@ -130,6 +158,7 @@ String buildSequenceDescription(const char *kind, const char *tag)
 void loadDefaultSoundSequence()
 {
     setSoundSequence(DEFAULT_SOUND_SEQUENCE, sizeof(DEFAULT_SOUND_SEQUENCE) / sizeof(DEFAULT_SOUND_SEQUENCE[0]));
+    sequenceSettings.startVolumePercent = volumeToPercent(DFPLAYER_VOLUME);
     sequenceLoadedFromFilesystem = false;
 }
 
@@ -185,7 +214,15 @@ bool readSoundSequenceFromFile(File &file)
         return false;
     }
 
-    return applySoundSequenceJson(steps);
+    const int startVolumePercent = document["startVolumePercent"] | DEFAULT_SEQUENCE_START_VOLUME_PERCENT;
+
+    if (!applySoundSequenceJson(steps))
+    {
+        return false;
+    }
+
+    sequenceSettings.startVolumePercent = clampPercent(startVolumePercent);
+    return true;
 }
 
 bool playResolvedSound(const SoundDefinition &definition)
@@ -379,6 +416,7 @@ bool saveSoundSequenceToFilesystem()
 
     JsonDocument document;
     document["maxSteps"] = getMaxSoundSequenceSteps();
+    document["startVolumePercent"] = sequenceSettings.startVolumePercent;
     JsonArray sequenceArray = document["sequence"].to<JsonArray>();
 
     for (size_t index = 0; index < runtimeSequenceCount; ++index)
@@ -423,9 +461,35 @@ uint8_t getDfPlayerMaxVolume()
     return DFPLAYER_MAX_VOLUME;
 }
 
+uint8_t getGlobalVolumePercent()
+{
+    return volumeToPercent(currentVolume);
+}
+
+bool setGlobalVolumePercent(uint8_t volumePercent)
+{
+    return setDfPlayerVolume(percentToVolume(volumePercent));
+}
+
 uint8_t getNormalizedUltrasoundVolumePercent()
 {
-    return static_cast<uint8_t>((static_cast<uint16_t>(currentVolume) * 10U + (DFPLAYER_MAX_VOLUME / 2U)) / DFPLAYER_MAX_VOLUME);
+    return static_cast<uint8_t>((static_cast<uint16_t>(getGlobalVolumePercent()) * 10U + 50U) / 100U);
+}
+
+SoundSequenceSettings getSoundSequenceSettings()
+{
+    return sequenceSettings;
+}
+
+bool setSoundSequenceSettings(const SoundSequenceSettings &settings)
+{
+    if (settings.startVolumePercent > 100)
+    {
+        return false;
+    }
+
+    sequenceSettings.startVolumePercent = settings.startVolumePercent;
+    return true;
 }
 
 bool setDfPlayerVolume(uint8_t volume)
@@ -478,6 +542,8 @@ bool playSoundByName(const String &soundName)
 
 bool startSoundSequence()
 {
+    setGlobalVolumePercent(sequenceSettings.startVolumePercent);
+
     if (!dfPlayerReady)
     {
         if (sequenceRequiresDfPlayer())

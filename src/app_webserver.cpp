@@ -209,6 +209,7 @@ void soundConfigJson()
     output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("")) + "\",";
     output += "\"sequenceRunning\":" + String(isSoundSequenceRunning() ? "true" : "false") + ",";
     output += "\"volume\":" + String(getDfPlayerVolume()) + ",";
+    output += "\"volumePercent\":" + String(getGlobalVolumePercent()) + ",";
     output += "\"ultrasoundVolumePercent\":" + String(getNormalizedUltrasoundVolumePercent()) + ",";
     output += "\"volumeMin\":" + String(getDfPlayerMinVolume()) + ",";
     output += "\"volumeMax\":" + String(getDfPlayerMaxVolume());
@@ -226,6 +227,7 @@ void sequenceConfigJson()
     const UltrasoundSequenceDefinition *ultrasounds = getUltrasoundSequenceDefinitions(ultrasoundCount);
     size_t sequenceCount = 0;
     const SoundSequenceStep *sequence = getSoundSequence(sequenceCount);
+    const SoundSequenceSettings sequenceSettings = getSoundSequenceSettings();
 
     String output = "{";
     output += "\"maxSteps\":" + String(getMaxSoundSequenceSteps()) + ",";
@@ -286,7 +288,9 @@ void sequenceConfigJson()
         output += "}";
     }
 
-    output += "]}";
+    output += "],";
+    output += "\"startVolumePercent\":" + String(sequenceSettings.startVolumePercent) + ",";
+    output += "\"currentVolumePercent\":" + String(getGlobalVolumePercent()) + "}";
 
     setAllowCors();
     server.send(200, "application/json", output);
@@ -315,6 +319,14 @@ void saveSequenceConfig()
     {
         setAllowCors();
         server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing sequence\"}");
+        return;
+    }
+
+    const int startVolumePercent = document["startVolumePercent"] | getSoundSequenceSettings().startVolumePercent;
+    if (startVolumePercent < 0 || startVolumePercent > 100)
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"start volume out of range\"}");
         return;
     }
 
@@ -349,11 +361,12 @@ void saveSequenceConfig()
         ++index;
     }
 
-    const bool ok = setSoundSequence(tempSteps, stepCount);
+    const bool ok = setSoundSequence(tempSteps, stepCount) && setSoundSequenceSettings({static_cast<uint8_t>(startVolumePercent)});
     const bool persisted = ok ? saveSoundSequenceToFilesystem() : false;
     String output = "{";
     output += "\"ok\":" + String(ok ? "true" : "false") + ",";
     output += "\"count\":" + String(stepCount) + ",";
+    output += "\"startVolumePercent\":" + String(startVolumePercent) + ",";
     output += "\"persisted\":" + String(persisted ? "true" : "false");
     output += "}";
 
@@ -371,18 +384,20 @@ void setVolume()
     }
 
     const int requestedValue = server.arg("value").toInt();
-    if (requestedValue < getDfPlayerMinVolume() || requestedValue > getDfPlayerMaxVolume())
+    if (requestedValue < 0 || requestedValue > 100)
     {
         setAllowCors();
         server.send(400, "application/json", "{\"ok\":false,\"error\":\"volume out of range\"}");
         return;
     }
 
-    const bool ok = setDfPlayerVolume(static_cast<uint8_t>(requestedValue));
+    const bool ok = setGlobalVolumePercent(static_cast<uint8_t>(requestedValue));
 
     String output = "{";
     output += "\"ok\":" + String(ok ? "true" : "false") + ",";
-    output += "\"volume\":" + String(getDfPlayerVolume());
+    output += "\"volume\":" + String(getDfPlayerVolume()) + ",";
+    output += "\"volumePercent\":" + String(getGlobalVolumePercent()) + ",";
+    output += "\"ultrasoundVolumePercent\":" + String(getNormalizedUltrasoundVolumePercent());
     output += "}";
 
     setAllowCors();
@@ -551,22 +566,15 @@ void setUltrasound()
         return;
     }
 
-    if (!server.hasArg("volume") || !server.hasArg("duration"))
+    if (!server.hasArg("duration"))
     {
         setAllowCors();
         server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing parameters\"}");
         return;
     }
 
-    const long volumePercent = server.arg("volume").toInt();
     const long durationMs = server.arg("duration").toInt();
-
-    if (volumePercent < 0 || volumePercent > 100)
-    {
-        setAllowCors();
-        server.send(400, "application/json", "{\"ok\":false,\"error\":\"volume out of range\"}");
-        return;
-    }
+    const uint8_t volumePercent = getNormalizedUltrasoundVolumePercent();
 
     if (durationMs <= 0)
     {

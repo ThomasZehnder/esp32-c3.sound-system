@@ -181,11 +181,30 @@ function renderSequenceEditor(container, config) {
     const ultrasounds = Array.isArray(config.ultrasounds) ? config.ultrasounds : [];
     const sequence = Array.isArray(config.sequence) ? config.sequence : [];
     const maxSteps = typeof config.maxSteps === 'number' ? config.maxSteps : 20;
+    const startVolumePercent = typeof config.startVolumePercent === 'number' ? config.startVolumePercent : 100;
     const sourceHintElement = document.getElementById('sequenceSourceHint');
+    const volumeSettingsElement = document.getElementById('sequenceVolumeSettings');
 
     if (sourceHintElement) {
         const sourceLabel = config.sequenceSource === 'littlefs' ? 'LittleFS (/sequence.json)' : 'compiled defaults';
         sourceHintElement.textContent = `Sequence source: ${sourceLabel}`;
+    }
+
+    if (volumeSettingsElement) {
+        volumeSettingsElement.innerHTML = `
+            <div class="ultrasound-form">
+                <label class="ultrasound-field">
+                    <span>Sequence start volume: <strong id="sequenceStartVolumeValue">${startVolumePercent}</strong>%</span>
+                    <input id="sequenceStartVolume" type="range" min="0" max="100" step="1" value="${startVolumePercent}">
+                </label>
+            </div>
+        `;
+
+        const sequenceStartVolume = volumeSettingsElement.querySelector('#sequenceStartVolume');
+        const sequenceStartVolumeValue = volumeSettingsElement.querySelector('#sequenceStartVolumeValue');
+        sequenceStartVolume?.addEventListener('input', () => {
+            setSliderValueLabel(sequenceStartVolumeValue, sequenceStartVolume.value);
+        });
     }
 
     const rows = Array.from({ length: maxSteps }, (_, index) => {
@@ -278,6 +297,7 @@ async function saveSequenceEditorConfig() {
     }
 
     const rows = Array.from(container.querySelectorAll('.sequence-editor-row'));
+    const startVolumePercent = Number(document.getElementById('sequenceStartVolume')?.value || 0);
     const sequence = rows
         .filter((row) => row.querySelector('.sequence-enabled')?.checked)
         .map((row) => {
@@ -303,7 +323,7 @@ async function saveSequenceEditorConfig() {
         const response = await fetch('/sequence-config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sequence })
+            body: JSON.stringify({ sequence, startVolumePercent })
         });
         const data = await response.json();
         if (!response.ok) {
@@ -364,18 +384,38 @@ function renderSoundButtons(container, soundConfig) {
     });
 }
 
+function setSliderValueLabel(valueLabel, value) {
+    if (valueLabel) {
+        valueLabel.textContent = String(value);
+    }
+}
+
+async function updateGlobalVolumePercent(volumePercent) {
+    const response = await fetch(`/volume?value=${encodeURIComponent(volumePercent)}`);
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+    }
+
+    return data;
+}
+
+async function fetchSoundConfig() {
+    const response = await fetch('/sound-config');
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response.json();
+}
+
 function renderVolumeControl(container, soundConfig) {
     if (typeof soundConfig.volume !== 'number') {
         container.innerHTML = '<p>Volume control unavailable.</p>';
         return;
     }
 
-    const minVolume = typeof soundConfig.volumeMin === 'number' ? soundConfig.volumeMin : 0;
-    const maxVolume = typeof soundConfig.volumeMax === 'number' ? soundConfig.volumeMax : 100;
-    const volumeRange = Math.max(1, maxVolume - minVolume);
-    const toPercent = (value) => Math.round(((value - minVolume) * 100) / volumeRange);
-    const toDeviceVolume = (percent) => Math.round(minVolume + (Math.max(0, Math.min(100, percent)) * volumeRange) / 100);
-    const normalizedPercent = toPercent(soundConfig.volume);
+    const normalizedPercent = typeof soundConfig.volumePercent === 'number' ? soundConfig.volumePercent : soundConfig.volume;
 
     container.innerHTML = `
         <label for="volumeSlider">Volume: <strong id="volumeValue">${normalizedPercent}</strong>%</label>
@@ -389,26 +429,20 @@ function renderVolumeControl(container, soundConfig) {
     }
 
     slider.addEventListener('input', () => {
-        valueLabel.textContent = slider.value;
+        setSliderValueLabel(valueLabel, slider.value);
     });
 
     slider.addEventListener('change', async () => {
         const statusElement = document.getElementById('soundStatus');
         const requestedPercent = Number(slider.value);
-        const requestedDeviceVolume = toDeviceVolume(requestedPercent);
         if (statusElement) {
             statusElement.textContent = `Setting volume: ${requestedPercent}% ...`;
         }
 
         try {
-            const response = await fetch(`/volume?value=${encodeURIComponent(requestedDeviceVolume)}`);
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || `HTTP ${response.status}`);
-            }
-
-            const appliedPercent = toPercent(data.volume);
-            valueLabel.textContent = appliedPercent;
+            const data = await updateGlobalVolumePercent(requestedPercent);
+            const appliedPercent = typeof data.volumePercent === 'number' ? data.volumePercent : requestedPercent;
+            setSliderValueLabel(valueLabel, appliedPercent);
             slider.value = appliedPercent;
             if (statusElement) {
                 statusElement.textContent = JSON.stringify(data, null, 2);
@@ -619,20 +653,43 @@ function wireUltrasoundControls(article) {
     }
 
     if (volumeValue) {
-        volumeValue.textContent = volumeInput.value;
+        setSliderValueLabel(volumeValue, volumeInput.value);
         volumeInput.addEventListener('input', () => {
-            volumeValue.textContent = volumeInput.value;
+            setSliderValueLabel(volumeValue, volumeInput.value);
+        });
+
+        volumeInput.addEventListener('change', async () => {
+            statusElement.textContent = `Setting volume: ${volumeInput.value}% ...`;
+
+            try {
+                const data = await updateGlobalVolumePercent(Number(volumeInput.value));
+                const appliedPercent = typeof data.volumePercent === 'number' ? data.volumePercent : Number(volumeInput.value);
+                volumeInput.value = String(appliedPercent);
+                setSliderValueLabel(volumeValue, appliedPercent);
+                statusElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                statusElement.textContent = `Failed to set volume: ${error.message}`;
+            }
         });
     }
+
+    fetchSoundConfig()
+        .then((soundConfig) => {
+            const globalVolumePercent = typeof soundConfig.volumePercent === 'number' ? soundConfig.volumePercent : Number(volumeInput.value);
+            volumeInput.value = String(globalVolumePercent);
+            setSliderValueLabel(volumeValue, globalVolumePercent);
+        })
+        .catch((error) => {
+            statusElement.textContent = `Failed to load volume: ${error.message}`;
+        });
 
     async function startFixedUltrasound(frequency, label) {
         statusElement.textContent = `Starting ${label} ...`;
 
         try {
-            const volume = Number(volumeInput.value);
             const duration = Number(durationInput.value);
             frequencyInput.value = String(frequency);
-            const response = await fetch(`/ultrasound?action=start&frequency=${encodeURIComponent(frequency)}&volume=${encodeURIComponent(volume)}&duration=${encodeURIComponent(duration)}`);
+            const response = await fetch(`/ultrasound?action=start&frequency=${encodeURIComponent(frequency)}&duration=${encodeURIComponent(duration)}`);
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || `HTTP ${response.status}`);
@@ -666,9 +723,8 @@ function wireUltrasoundControls(article) {
         try {
             const minFrequency = Number(minFrequencyInput.value);
             const maxFrequency = Number(maxFrequencyInput.value);
-            const volume = Number(volumeInput.value);
             const duration = Number(durationInput.value);
-            const response = await fetch(`/ultrasound?action=random&minFrequency=${encodeURIComponent(minFrequency)}&maxFrequency=${encodeURIComponent(maxFrequency)}&volume=${encodeURIComponent(volume)}&duration=${encodeURIComponent(duration)}`);
+            const response = await fetch(`/ultrasound?action=random&minFrequency=${encodeURIComponent(minFrequency)}&maxFrequency=${encodeURIComponent(maxFrequency)}&duration=${encodeURIComponent(duration)}`);
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || `HTTP ${response.status}`);
