@@ -8,6 +8,7 @@ void initDfPlayer();
 bool isDfPlayerReady();
 bool playSoundByName(const String &soundName);
 const SoundDefinition *getSoundDefinitions(size_t &count);
+const UltrasoundSequenceDefinition *getUltrasoundSequenceDefinitions(size_t &count);
 const SoundSequenceStep *getSoundSequence(size_t &count);
 size_t getMaxSoundSequenceSteps();
 bool setSoundSequence(const SoundSequenceStep *steps, size_t count);

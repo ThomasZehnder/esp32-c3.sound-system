@@ -5,6 +5,8 @@
 #include <HardwareSerial.h>
 #include <LittleFS.h>
 
+#include "ultrasound_pwm.h"
+
 namespace
 {
 constexpr int DFPLAYER_RX_PIN = 3;
@@ -12,7 +14,7 @@ constexpr int DFPLAYER_TX_PIN = 4;
 constexpr uint8_t DFPLAYER_MIN_VOLUME = 0;
 constexpr uint8_t DFPLAYER_MAX_VOLUME = 30;
 constexpr uint8_t DFPLAYER_VOLUME = 10;
-constexpr size_t SOUND_STEP_KIND_BUFFER_LENGTH = 8;
+constexpr size_t SOUND_STEP_KIND_BUFFER_LENGTH = 16;
 constexpr size_t SOUND_STEP_TAG_BUFFER_LENGTH = 24;
 constexpr size_t SOUND_STEP_DESCRIPTION_BUFFER_LENGTH = 80;
 constexpr char SOUND_SEQUENCE_FILE_PATH[] = "/sequence.json";
@@ -63,6 +65,24 @@ const SoundDefinition *findSoundDefinitionByTag(const char *soundTag)
     return nullptr;
 }
 
+const UltrasoundSequenceDefinition *findUltrasoundDefinitionByTag(const char *soundTag)
+{
+    if (!soundTag)
+    {
+        return nullptr;
+    }
+
+    for (const UltrasoundSequenceDefinition &definition : ULTRASOUND_SEQUENCE_DEFINITIONS)
+    {
+        if (strcmp(soundTag, definition.tag) == 0)
+        {
+            return &definition;
+        }
+    }
+
+    return nullptr;
+}
+
 void writeRuntimeSequenceStep(size_t index, const char *kind, const char *tag, uint32_t durationMs, const char *description)
 {
     snprintf(runtimeSequenceKinds[index], sizeof(runtimeSequenceKinds[index]), "%s", kind ? kind : "pause");
@@ -77,7 +97,7 @@ void writeRuntimeSequenceStep(size_t index, const char *kind, const char *tag, u
 
 bool isValidSequenceKind(const char *kind)
 {
-    return kind && (strcmp(kind, "sound") == 0 || strcmp(kind, "pause") == 0);
+    return kind && (strcmp(kind, "sound") == 0 || strcmp(kind, "pause") == 0 || strcmp(kind, "ultrasound") == 0);
 }
 
 String buildSequenceDescription(const char *kind, const char *tag)
@@ -85,6 +105,17 @@ String buildSequenceDescription(const char *kind, const char *tag)
     if (kind && strcmp(kind, "pause") == 0)
     {
         return "Pause step";
+    }
+
+    if (kind && strcmp(kind, "ultrasound") == 0)
+    {
+        const UltrasoundSequenceDefinition *definition = findUltrasoundDefinitionByTag(tag);
+        if (!definition)
+        {
+            return "Configured ultrasound";
+        }
+
+        return String(definition->description);
     }
 
     const SoundDefinition *definition = findSoundDefinitionByTag(tag);
@@ -168,6 +199,29 @@ bool playResolvedSound(const SoundDefinition &definition)
     Serial.println(definition.tag);
     return true;
 }
+
+bool playResolvedUltrasound(const UltrasoundSequenceDefinition &definition, uint32_t durationMs)
+{
+    if (definition.randomMode)
+    {
+        return playRandomUltrasound(definition.minFrequencyHz, definition.maxFrequencyHz, 100, durationMs);
+    }
+
+    return playUltrasound(definition.minFrequencyHz, 100, durationMs);
+}
+
+bool sequenceRequiresDfPlayer()
+{
+    for (size_t index = 0; index < runtimeSequenceCount; ++index)
+    {
+        if (strcmp(runtimeSequence[index].kind, "sound") == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
 }
 
 void initDfPlayer()
@@ -206,6 +260,12 @@ const SoundDefinition *getSoundDefinitions(size_t &count)
     return SOUND_DEFINITIONS;
 }
 
+const UltrasoundSequenceDefinition *getUltrasoundSequenceDefinitions(size_t &count)
+{
+    count = sizeof(ULTRASOUND_SEQUENCE_DEFINITIONS) / sizeof(ULTRASOUND_SEQUENCE_DEFINITIONS[0]);
+    return ULTRASOUND_SEQUENCE_DEFINITIONS;
+}
+
 const SoundSequenceStep *getSoundSequence(size_t &count)
 {
     count = runtimeSequenceCount;
@@ -236,6 +296,15 @@ bool setSoundSequence(const SoundSequenceStep *steps, size_t count)
         {
             const SoundDefinition *definition = findSoundDefinitionByTag(step.tag);
             if (!definition || strcmp(definition->tag, "stop") == 0)
+            {
+                return false;
+            }
+        }
+
+        if (strcmp(step.kind, "ultrasound") == 0)
+        {
+            const UltrasoundSequenceDefinition *definition = findUltrasoundDefinitionByTag(step.tag);
+            if (!definition)
             {
                 return false;
             }
@@ -404,8 +473,11 @@ bool startSoundSequence()
 {
     if (!dfPlayerReady)
     {
-        Serial.println("DFPlayer sequence start failed: player not ready.");
-        return false;
+        if (sequenceRequiresDfPlayer())
+        {
+            Serial.println("DFPlayer sequence start failed: player not ready.");
+            return false;
+        }
     }
 
     size_t stepCount = 0;
@@ -428,6 +500,7 @@ void stopSoundSequence()
 {
     sequenceRunning = false;
     sequenceStepActive = false;
+    stopUltrasound();
     if (dfPlayerReady)
     {
         dfPlayer.stop();
@@ -490,7 +563,7 @@ unsigned long getSoundSequenceRemainingMs()
 
 void updateDfPlayerScheduler()
 {
-    if (!sequenceRunning || !dfPlayerReady)
+    if (!sequenceRunning)
     {
         return;
     }
@@ -508,14 +581,43 @@ void updateDfPlayerScheduler()
         const SoundSequenceStep &step = steps[sequenceIndex];
         if (String(step.kind) == "pause")
         {
+            stopUltrasound();
             dfPlayer.stop();
             Serial.print("DFPlayer sequence pause for ms: ");
             Serial.println(step.durationMs);
         }
+        else if (String(step.kind) == "ultrasound")
+        {
+            if (dfPlayerReady)
+            {
+                dfPlayer.stop();
+            }
+
+            const UltrasoundSequenceDefinition *definition = findUltrasoundDefinitionByTag(step.tag);
+            if (!definition)
+            {
+                Serial.print("DFPlayer sequence unknown ultrasound tag: ");
+                Serial.println(step.tag);
+            }
+            else
+            {
+                playResolvedUltrasound(*definition, step.durationMs);
+            }
+        }
         else
         {
+            stopUltrasound();
+            if (!dfPlayerReady)
+            {
+                Serial.println("DFPlayer sequence sound skipped: player not ready.");
+            }
+
             const SoundDefinition *definition = findSoundDefinition(String(step.tag));
-            if (!definition)
+            if (!dfPlayerReady)
+            {
+                // keep timing consistent even if the player is unavailable
+            }
+            else if (!definition)
             {
                 Serial.print("DFPlayer sequence unknown tag: ");
                 Serial.println(step.tag);

@@ -221,6 +221,8 @@ void sequenceConfigJson()
 {
     size_t soundCount = 0;
     const SoundDefinition *sounds = getSoundDefinitions(soundCount);
+    size_t ultrasoundCount = 0;
+    const UltrasoundSequenceDefinition *ultrasounds = getUltrasoundSequenceDefinitions(ultrasoundCount);
     size_t sequenceCount = 0;
     const SoundSequenceStep *sequence = getSoundSequence(sequenceCount);
 
@@ -241,6 +243,27 @@ void sequenceConfigJson()
         output += "\"tag\":\"" + String(sound.tag) + "\",";
         output += "\"buttonLabel\":\"" + String(sound.buttonLabel) + "\",";
         output += "\"description\":\"" + String(sound.description) + "\"";
+        output += "}";
+    }
+
+    output += "],";
+    output += "\"ultrasounds\":[";
+
+    for (size_t index = 0; index < ultrasoundCount; ++index)
+    {
+        const UltrasoundSequenceDefinition &ultrasound = ultrasounds[index];
+        if (index > 0)
+        {
+            output += ",";
+        }
+
+        output += "{";
+        output += "\"tag\":\"" + String(ultrasound.tag) + "\",";
+        output += "\"buttonLabel\":\"" + String(ultrasound.buttonLabel) + "\",";
+        output += "\"description\":\"" + String(ultrasound.description) + "\",";
+        output += "\"minFrequencyHz\":" + String(ultrasound.minFrequencyHz) + ",";
+        output += "\"maxFrequencyHz\":" + String(ultrasound.maxFrequencyHz) + ",";
+        output += "\"randomMode\":" + String(ultrasound.randomMode ? "true" : "false");
         output += "}";
     }
 
@@ -303,7 +326,7 @@ void saveSequenceConfig()
     }
 
     SoundSequenceStep tempSteps[MAX_SOUND_SEQUENCE_STEPS];
-    char tempKinds[MAX_SOUND_SEQUENCE_STEPS][8] = {};
+    char tempKinds[MAX_SOUND_SEQUENCE_STEPS][16] = {};
     char tempTags[MAX_SOUND_SEQUENCE_STEPS][24] = {};
     char tempDescriptions[MAX_SOUND_SEQUENCE_STEPS][80] = {};
 

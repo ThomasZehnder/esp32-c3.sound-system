@@ -19,6 +19,16 @@ struct SoundSequenceStep
     const char *description;
 };
 
+struct UltrasoundSequenceDefinition
+{
+    const char *tag;
+    const char *buttonLabel;
+    const char *description;
+    uint32_t minFrequencyHz;
+    uint32_t maxFrequencyHz;
+    bool randomMode;
+};
+
 constexpr size_t MAX_SOUND_SEQUENCE_STEPS = 12;
 
 // Define sound definitions https://pixabay.com/de/sound-effects
@@ -27,6 +37,7 @@ constexpr size_t MAX_SOUND_SEQUENCE_STEPS = 12;
 // description: description of the sound, can be shown in the web interface
 // folder: the folder number on the SD card where the sound file is located
 // track: the track number within the folder to play
+
 constexpr SoundDefinition SOUND_DEFINITIONS[] = {
     {"dogbell", "Hundegeb\u00e4ll", "Hunde Geb\u00e4ll", 1, 1},
     {"dog", "Hunde", "Hunde Kurzes Gebell", 1, 2},
@@ -47,4 +58,12 @@ constexpr SoundSequenceStep DEFAULT_SOUND_SEQUENCE[] = {
     {"pause", "", 2500, "Pause after diesel"},
     {"sound", "wolf", 5000, "Play wolf howl"},
     {"pause", "", 3000, "Pause after wolf"},
+};
+
+constexpr UltrasoundSequenceDefinition ULTRASOUND_SEQUENCE_DEFINITIONS[] = {
+    {"us-8k", "Ultrasound 8 kHz", "Fixed ultrasound at 8 kHz", 8000, 8000, false},
+    {"us-12k", "Ultrasound 12 kHz", "Fixed ultrasound at 12 kHz", 12000, 12000, false},
+    {"us-24k", "Ultrasound 24 kHz", "Fixed ultrasound at 24 kHz", 24000, 24000, false},
+    {"us-36k", "Ultrasound 36 kHz", "Fixed ultrasound at 36 kHz", 36000, 36000, false},
+    {"us-random-8k-36k", "Ultrasound random 8-36 kHz", "Random ultrasound between 8 kHz and 36 kHz", 8000, 36000, true},
 };

@@ -135,6 +135,31 @@ function createSoundOptions(sounds, selectedTag) {
     }).join('');
 }
 
+function createUltrasoundOptions(ultrasounds, selectedTag) {
+    return ultrasounds.map((ultrasound) => {
+        const selected = ultrasound.tag === selectedTag ? ' selected' : '';
+        return `<option value="${ultrasound.tag}"${selected}>${ultrasound.buttonLabel}</option>`;
+    }).join('');
+}
+
+function updateSequenceTagOptions(row, sounds, ultrasounds) {
+    const kind = row.querySelector('.sequence-kind');
+    const tag = row.querySelector('.sequence-tag');
+    if (!kind || !tag) {
+        return;
+    }
+
+    const selectedTag = tag.value;
+    const options = kind.value === 'ultrasound'
+        ? createUltrasoundOptions(ultrasounds, selectedTag)
+        : createSoundOptions(sounds, selectedTag);
+
+    tag.innerHTML = options;
+    if (!tag.value && tag.options.length > 0) {
+        tag.value = tag.options[0].value;
+    }
+}
+
 function toggleSequenceEditorRow(row) {
     const enabled = row.querySelector('.sequence-enabled');
     const kind = row.querySelector('.sequence-kind');
@@ -153,6 +178,7 @@ function toggleSequenceEditorRow(row) {
 function renderSequenceEditor(container, config) {
     sequenceEditorConfig = config;
     const sounds = (Array.isArray(config.sounds) ? config.sounds : []).filter((sound) => sound.tag !== 'stop');
+    const ultrasounds = Array.isArray(config.ultrasounds) ? config.ultrasounds : [];
     const sequence = Array.isArray(config.sequence) ? config.sequence : [];
     const maxSteps = typeof config.maxSteps === 'number' ? config.maxSteps : 20;
     const sourceHintElement = document.getElementById('sequenceSourceHint');
@@ -166,8 +192,12 @@ function renderSequenceEditor(container, config) {
         const step = sequence[index];
         const enabled = !!step;
         const kind = step?.kind || 'sound';
-        const tag = step?.tag || (sounds[0]?.tag || '');
+        const defaultTag = kind === 'ultrasound' ? (ultrasounds[0]?.tag || '') : (sounds[0]?.tag || '');
+        const tag = step?.tag || defaultTag;
         const durationMs = step?.durationMs || 1000;
+        const tagOptions = kind === 'ultrasound'
+            ? createUltrasoundOptions(ultrasounds, tag)
+            : createSoundOptions(sounds, tag);
 
         return `
             <div class="sequence-editor-row" data-step-index="${index}">
@@ -176,12 +206,13 @@ function renderSequenceEditor(container, config) {
                 <div>
                     <select class="sequence-kind">
                         <option value="sound"${kind === 'sound' ? ' selected' : ''}>sound</option>
+                        <option value="ultrasound"${kind === 'ultrasound' ? ' selected' : ''}>ultrasound</option>
                         <option value="pause"${kind === 'pause' ? ' selected' : ''}>pause</option>
                     </select>
                 </div>
                 <div>
                     <select class="sequence-tag">
-                        ${createSoundOptions(sounds, tag)}
+                        ${tagOptions}
                     </select>
                 </div>
                 <div>
@@ -205,7 +236,11 @@ function renderSequenceEditor(container, config) {
     const rowElements = container.querySelectorAll('.sequence-editor-row');
     rowElements.forEach((row) => {
         row.querySelector('.sequence-enabled')?.addEventListener('change', () => toggleSequenceEditorRow(row));
-        row.querySelector('.sequence-kind')?.addEventListener('change', () => toggleSequenceEditorRow(row));
+        row.querySelector('.sequence-kind')?.addEventListener('change', () => {
+            updateSequenceTagOptions(row, sounds, ultrasounds);
+            toggleSequenceEditorRow(row);
+        });
+        updateSequenceTagOptions(row, sounds, ultrasounds);
         toggleSequenceEditorRow(row);
     });
 }
