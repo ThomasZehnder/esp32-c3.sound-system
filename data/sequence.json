@@ -1,4 +1,7 @@
-[
+{
+  "maxSteps": 10,
+  "startVolumePercent": 21,
+  "sequence": [
     {
       "kind": "sound",
       "tag": "dogbell",
@@ -8,7 +11,7 @@
     {
       "kind": "pause",
       "tag": "",
-      "durationMs": 2,
+      "durationMs": 2000,
       "description": "Pause step"
     },
     {
@@ -47,4 +50,5 @@
       "durationMs": 3000,
       "description": "Pause step"
     }
-]
+  ]
+}
