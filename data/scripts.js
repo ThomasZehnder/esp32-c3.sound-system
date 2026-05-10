@@ -564,18 +564,19 @@ function wireUltrasoundControls(article) {
     const randomStartButton = article.querySelector('#ultrasoundRandomStartButton');
     const stopButton = article.querySelector('#ultrasoundStopButton');
     const refreshButton = article.querySelector('#ultrasoundRefreshButton');
+    const presetButtons = article.querySelectorAll('.ultrasoundPresetButton');
 
     if (!statusElement || !frequencyInput || !minFrequencyInput || !maxFrequencyInput || !volumeInput || !durationInput || !startButton || !randomStartButton || !stopButton || !refreshButton) {
         return;
     }
 
-    startButton.addEventListener('click', async () => {
-        statusElement.textContent = 'Starting ultrasound ...';
+    async function startFixedUltrasound(frequency, label) {
+        statusElement.textContent = `Starting ${label} ...`;
 
         try {
-            const frequency = Number(frequencyInput.value);
             const volume = Number(volumeInput.value);
             const duration = Number(durationInput.value);
+            frequencyInput.value = String(frequency);
             const response = await fetch(`/ultrasound?action=start&frequency=${encodeURIComponent(frequency)}&volume=${encodeURIComponent(volume)}&duration=${encodeURIComponent(duration)}`);
             const data = await response.json();
             if (!response.ok) {
@@ -585,8 +586,23 @@ function wireUltrasoundControls(article) {
             renderUltrasoundState(statusElement, data);
             startUltrasoundStatePolling();
         } catch (error) {
-            statusElement.textContent = `Failed to start ultrasound: ${error.message}`;
+            statusElement.textContent = `Failed to start ${label}: ${error.message}`;
         }
+    }
+
+    startButton.addEventListener('click', async () => {
+        await startFixedUltrasound(Number(frequencyInput.value), 'ultrasound');
+    });
+
+    presetButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+            const frequency = Number(button.dataset.ultrasoundFrequency || '0');
+            if (!frequency) {
+                return;
+            }
+
+            await startFixedUltrasound(frequency, `${frequency} Hz ultrasound`);
+        });
     });
 
     randomStartButton.addEventListener('click', async () => {

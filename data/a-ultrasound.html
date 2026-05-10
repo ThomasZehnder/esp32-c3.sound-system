@@ -36,6 +36,14 @@
     <button type="button" id="ultrasoundRefreshButton">Refresh status</button>
 </div>
 
+<div class="ultrasound-actions">
+    <button type="button" class="ultrasoundPresetButton" data-ultrasound-frequency="4000">Start 4000 Hz</button>
+    <button type="button" class="ultrasoundPresetButton" data-ultrasound-frequency="12000">Start 12000 Hz</button>
+    <button type="button" class="ultrasoundPresetButton" data-ultrasound-frequency="24000">Start 24000 Hz</button>
+    <button type="button" class="ultrasoundPresetButton" data-ultrasound-frequency="36000">Start 36000 Hz</button>
+</div>
+
 <p>Random mode changes to a new random frequency every 200 ms within the configured min/max range.</p>
+<p>The fixed-frequency buttons use the configured volume and duration.</p>
 
 <pre id="ultrasoundStatus">Ultrasound idle.</pre>
