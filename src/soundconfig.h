@@ -61,6 +61,7 @@ constexpr SoundSequenceStep DEFAULT_SOUND_SEQUENCE[] = {
 };
 
 constexpr UltrasoundSequenceDefinition ULTRASOUND_SEQUENCE_DEFINITIONS[] = {
+    {"us-4k", "Ultrasound 4 kHz", "Fixed ultrasound at 4 kHz", 4000, 4000, false},
     {"us-8k", "Ultrasound 8 kHz", "Fixed ultrasound at 8 kHz", 8000, 8000, false},
     {"us-12k", "Ultrasound 12 kHz", "Fixed ultrasound at 12 kHz", 12000, 12000, false},
     {"us-24k", "Ultrasound 24 kHz", "Fixed ultrasound at 24 kHz", 24000, 24000, false},

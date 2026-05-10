@@ -195,6 +195,7 @@ function renderSequenceEditor(container, config) {
         const defaultTag = kind === 'ultrasound' ? (ultrasounds[0]?.tag || '') : (sounds[0]?.tag || '');
         const tag = step?.tag || defaultTag;
         const durationMs = step?.durationMs || 1000;
+        const durationSeconds = durationMs / 1000;
         const tagOptions = kind === 'ultrasound'
             ? createUltrasoundOptions(ultrasounds, tag)
             : createSoundOptions(sounds, tag);
@@ -216,7 +217,7 @@ function renderSequenceEditor(container, config) {
                     </select>
                 </div>
                 <div>
-                    <input class="sequence-duration" type="number" min="1" step="100" value="${durationMs}">
+                    <input class="sequence-duration" type="number" min="1" step="1" value="${durationSeconds}">
                 </div>
             </div>
         `;
@@ -228,7 +229,7 @@ function renderSequenceEditor(container, config) {
             <div>Use</div>
             <div>Type</div>
             <div>Sound</div>
-            <div>Time ms</div>
+            <div>Time s</div>
         </div>
         ${rows}
     `;
@@ -282,7 +283,8 @@ async function saveSequenceEditorConfig() {
         .map((row) => {
             const kind = row.querySelector('.sequence-kind')?.value || 'sound';
             const tag = kind === 'pause' ? '' : (row.querySelector('.sequence-tag')?.value || '');
-            const durationMs = Number(row.querySelector('.sequence-duration')?.value || 0);
+            const durationSeconds = Number(row.querySelector('.sequence-duration')?.value || 0);
+            const durationMs = Math.round(durationSeconds * 1000);
             return { kind, tag, durationMs };
         });
 
