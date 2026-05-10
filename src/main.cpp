@@ -102,12 +102,24 @@ void loop()
     char millisText[24];
     char networkText[24];
     String ipAddress = WiFi.localIP().toString();
+    String audioStatusText;
 
     snprintf(ledText, sizeof(ledText), "LED: %s", ledState ? "ON" : "OFF");
     snprintf(millisText, sizeof(millisText), "%lus", millis() / 1000);
     snprintf(networkText, sizeof(networkText), "%s", wifiConnected ? ipAddress.c_str() : "No WiFi");
 
-    renderDisplay("ESP32-C3 running", networkText, isDfPlayerReady() ? selectedSound : "DFP offline", millisText);
+    if (isUltrasoundPlaying())
+    {
+        audioStatusText = isUltrasoundRandomMode()
+                              ? "US " + String(getUltrasoundFrequencyHz()) + "Hz rnd"
+                              : "US " + String(getUltrasoundFrequencyHz()) + "Hz";
+    }
+    else
+    {
+        audioStatusText = isDfPlayerReady() ? selectedSound : "DFP offline";
+    }
+
+    renderDisplay("ESP32-C3 running", networkText, audioStatusText, millisText);
 
     delay(100);
 }
