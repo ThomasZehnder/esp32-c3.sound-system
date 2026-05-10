@@ -368,9 +368,16 @@ function renderVolumeControl(container, soundConfig) {
         return;
     }
 
+    const minVolume = typeof soundConfig.volumeMin === 'number' ? soundConfig.volumeMin : 0;
+    const maxVolume = typeof soundConfig.volumeMax === 'number' ? soundConfig.volumeMax : 100;
+    const volumeRange = Math.max(1, maxVolume - minVolume);
+    const toPercent = (value) => Math.round(((value - minVolume) * 100) / volumeRange);
+    const toDeviceVolume = (percent) => Math.round(minVolume + (Math.max(0, Math.min(100, percent)) * volumeRange) / 100);
+    const normalizedPercent = toPercent(soundConfig.volume);
+
     container.innerHTML = `
-        <label for="volumeSlider">Volume: <strong id="volumeValue">${soundConfig.volume}</strong></label>
-        <input id="volumeSlider" type="range" min="${soundConfig.volumeMin}" max="${soundConfig.volumeMax}" value="${soundConfig.volume}">
+        <label for="volumeSlider">Volume: <strong id="volumeValue">${normalizedPercent}</strong>%</label>
+        <input id="volumeSlider" type="range" min="0" max="100" step="1" value="${normalizedPercent}">
     `;
 
     const slider = container.querySelector('#volumeSlider');
@@ -385,19 +392,22 @@ function renderVolumeControl(container, soundConfig) {
 
     slider.addEventListener('change', async () => {
         const statusElement = document.getElementById('soundStatus');
+        const requestedPercent = Number(slider.value);
+        const requestedDeviceVolume = toDeviceVolume(requestedPercent);
         if (statusElement) {
-            statusElement.textContent = `Setting volume: ${slider.value} ...`;
+            statusElement.textContent = `Setting volume: ${requestedPercent}% ...`;
         }
 
         try {
-            const response = await fetch(`/volume?value=${encodeURIComponent(slider.value)}`);
+            const response = await fetch(`/volume?value=${encodeURIComponent(requestedDeviceVolume)}`);
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || `HTTP ${response.status}`);
             }
 
-            valueLabel.textContent = data.volume;
-            slider.value = data.volume;
+            const appliedPercent = toPercent(data.volume);
+            valueLabel.textContent = appliedPercent;
+            slider.value = appliedPercent;
             if (statusElement) {
                 statusElement.textContent = JSON.stringify(data, null, 2);
             }
