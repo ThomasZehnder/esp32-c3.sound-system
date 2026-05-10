@@ -7,6 +7,7 @@
 #include <WiFi.h>
 
 #include "dfplayer.h"
+#include "ultrasound_pwm.h"
 
 namespace
 {
@@ -473,6 +474,101 @@ void setSound()
     setAllowCors();
     server.send(200, "application/json", output);
 }
+
+void ultrasoundStateJson()
+{
+    String output = "{";
+    output += "\"ok\":true,";
+    output += "\"pin\":" + String(getUltrasoundPin()) + ",";
+    output += "\"frequencyHz\":" + String(getUltrasoundFrequencyHz()) + ",";
+    output += "\"volumePercent\":" + String(getUltrasoundVolumePercent()) + ",";
+    output += "\"remainingMs\":" + String(getUltrasoundRemainingMs()) + ",";
+    output += "\"playing\":" + String(isUltrasoundPlaying() ? "true" : "false") + ",";
+    output += "\"frequencyMinHz\":" + String(getUltrasoundMinFrequencyHz()) + ",";
+    output += "\"frequencyMaxHz\":" + String(getUltrasoundMaxFrequencyHz());
+    output += "}";
+
+    setAllowCors();
+    server.send(200, "application/json", output);
+}
+
+void setUltrasound()
+{
+    if (!server.hasArg("action"))
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing action\"}");
+        return;
+    }
+
+    const String action = server.arg("action");
+    if (action == "stop")
+    {
+        stopUltrasound();
+
+        String output = "{";
+        output += "\"ok\":true,";
+        output += "\"playing\":false,";
+        output += "\"message\":\"ultrasound stopped\"";
+        output += "}";
+
+        setAllowCors();
+        server.send(200, "application/json", output);
+        return;
+    }
+
+    if (action != "start")
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid action\"}");
+        return;
+    }
+
+    if (!server.hasArg("frequency") || !server.hasArg("volume") || !server.hasArg("duration"))
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing parameters\"}");
+        return;
+    }
+
+    const long frequencyHz = server.arg("frequency").toInt();
+    const long volumePercent = server.arg("volume").toInt();
+    const long durationMs = server.arg("duration").toInt();
+
+    if (frequencyHz < static_cast<long>(getUltrasoundMinFrequencyHz()) || frequencyHz > static_cast<long>(getUltrasoundMaxFrequencyHz()))
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"frequency out of range\"}");
+        return;
+    }
+
+    if (volumePercent < 0 || volumePercent > 100)
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"volume out of range\"}");
+        return;
+    }
+
+    if (durationMs <= 0)
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"duration must be positive\"}");
+        return;
+    }
+
+    const bool ok = playUltrasound(static_cast<uint32_t>(frequencyHz), static_cast<uint8_t>(volumePercent), static_cast<uint32_t>(durationMs));
+
+    String output = "{";
+    output += "\"ok\":" + String(ok ? "true" : "false") + ",";
+    output += "\"playing\":" + String(isUltrasoundPlaying() ? "true" : "false") + ",";
+    output += "\"frequencyHz\":" + String(getUltrasoundFrequencyHz()) + ",";
+    output += "\"volumePercent\":" + String(getUltrasoundVolumePercent()) + ",";
+    output += "\"remainingMs\":" + String(getUltrasoundRemainingMs());
+    output += "}";
+
+    setAllowCors();
+    server.send(ok ? 200 : 503, "application/json", output);
+}
 }
 
 void setupWebServer(bool *filesystemMountedState, bool *wifiConnectedState, String *selectedSoundState, SoundTriggerCallback soundTriggerCallback)
@@ -491,6 +587,7 @@ void setupWebServer(bool *filesystemMountedState, bool *wifiConnectedState, Stri
     registerStaticRoute("/favicon.svg");
     registerStaticRoute("/a-home.html");
     registerStaticRoute("/a-sounds.html");
+    registerStaticRoute("/a-ultrasound.html");
     registerStaticRoute("/a-config.html");
     registerStaticRoute("/a-sequence.html");
 
@@ -502,6 +599,8 @@ void setupWebServer(bool *filesystemMountedState, bool *wifiConnectedState, Stri
     server.on("/sound", HTTP_GET, setSound);
     server.on("/sequence", HTTP_GET, setSequence);
     server.on("/volume", HTTP_GET, setVolume);
+    server.on("/ultrasound", HTTP_GET, setUltrasound);
+    server.on("/ultrasound-state", HTTP_GET, ultrasoundStateJson);
 
     server.on("/inline", []()
               { server.send(200, "text/plain", "this works as well"); });

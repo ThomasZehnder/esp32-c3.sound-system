@@ -27,11 +27,13 @@ function renderLoadError(error) {
 const routes = {
     assembly: 'a-home.html',
     sounds: 'a-sounds.html',
+    ultrasound: 'a-ultrasound.html',
     config: 'a-config.html',
     sequence: 'a-sequence.html'
 };
 
 let soundStatePollTimer = null;
+let ultrasoundStatePollTimer = null;
 let sequenceEditorConfig = null;
 
 function getCurrentRoute() {
@@ -497,12 +499,115 @@ function stopSoundStatePolling() {
     }
 }
 
+function stopUltrasoundStatePolling() {
+    if (ultrasoundStatePollTimer !== null) {
+        clearInterval(ultrasoundStatePollTimer);
+        ultrasoundStatePollTimer = null;
+    }
+}
+
 function startSoundStatePolling() {
     stopSoundStatePolling();
     refreshSequenceState();
     soundStatePollTimer = setInterval(() => {
         refreshSequenceState();
     }, 500);
+}
+
+function renderUltrasoundState(element, state) {
+    if (!state.playing) {
+        element.textContent = JSON.stringify({
+            ...state,
+            message: 'Ultrasound idle.'
+        }, null, 2);
+        return;
+    }
+
+    element.textContent = JSON.stringify(state, null, 2);
+}
+
+async function refreshUltrasoundState() {
+    const statusElement = document.getElementById('ultrasoundStatus');
+    if (!statusElement) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/ultrasound-state');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderUltrasoundState(statusElement, data);
+    } catch (error) {
+        statusElement.textContent = `Failed to load ultrasound state: ${error.message}`;
+    }
+}
+
+function startUltrasoundStatePolling() {
+    stopUltrasoundStatePolling();
+    refreshUltrasoundState();
+    ultrasoundStatePollTimer = setInterval(() => {
+        refreshUltrasoundState();
+    }, 250);
+}
+
+function wireUltrasoundControls(article) {
+    const statusElement = article.querySelector('#ultrasoundStatus');
+    const frequencyInput = article.querySelector('#ultrasoundFrequency');
+    const volumeInput = article.querySelector('#ultrasoundVolume');
+    const durationInput = article.querySelector('#ultrasoundDuration');
+    const startButton = article.querySelector('#ultrasoundStartButton');
+    const stopButton = article.querySelector('#ultrasoundStopButton');
+    const refreshButton = article.querySelector('#ultrasoundRefreshButton');
+
+    if (!statusElement || !frequencyInput || !volumeInput || !durationInput || !startButton || !stopButton || !refreshButton) {
+        return;
+    }
+
+    startButton.addEventListener('click', async () => {
+        statusElement.textContent = 'Starting ultrasound ...';
+
+        try {
+            const frequency = Number(frequencyInput.value);
+            const volume = Number(volumeInput.value);
+            const duration = Number(durationInput.value);
+            const response = await fetch(`/ultrasound?action=start&frequency=${encodeURIComponent(frequency)}&volume=${encodeURIComponent(volume)}&duration=${encodeURIComponent(duration)}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            renderUltrasoundState(statusElement, data);
+            startUltrasoundStatePolling();
+        } catch (error) {
+            statusElement.textContent = `Failed to start ultrasound: ${error.message}`;
+        }
+    });
+
+    stopButton.addEventListener('click', async () => {
+        statusElement.textContent = 'Stopping ultrasound ...';
+
+        try {
+            const response = await fetch('/ultrasound?action=stop');
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            renderUltrasoundState(statusElement, data);
+            await refreshUltrasoundState();
+        } catch (error) {
+            statusElement.textContent = `Failed to stop ultrasound: ${error.message}`;
+        }
+    });
+
+    refreshButton.addEventListener('click', () => {
+        refreshUltrasoundState();
+    });
+
+    startUltrasoundStatePolling();
 }
 
 async function loadSoundConfigIntoElement(element) {
@@ -600,6 +705,7 @@ function loadEmbeddedData(article) {
     });
 
     wireSequenceEditor(article);
+    wireUltrasoundControls(article);
 
     wireRefreshButtons(article);
 }
@@ -619,6 +725,7 @@ async function loadArticle(articlePath) {
 
 async function loadCurrentRoute() {
     stopSoundStatePolling();
+    stopUltrasoundStatePolling();
 
     const routeName = getCurrentRoute();
     const articlePath = routes[routeName] || routes.assembly;
@@ -628,6 +735,10 @@ async function loadCurrentRoute() {
 
     if ((routeName in routes ? routeName : 'assembly') === 'sounds') {
         startSoundStatePolling();
+    }
+
+    if ((routeName in routes ? routeName : 'assembly') === 'ultrasound') {
+        startUltrasoundStatePolling();
     }
 }
 

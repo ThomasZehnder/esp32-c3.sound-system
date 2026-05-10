@@ -14,6 +14,8 @@ constexpr uint32_t ULTRASOUND_MAX_EFFECTIVE_DUTY = ULTRASOUND_MAX_DUTY / 2U;
 bool ultrasoundAttached = false;
 bool ultrasoundPlaying = false;
 uint32_t ultrasoundStopAtMs = 0;
+uint32_t ultrasoundFrequencyHz = ULTRASOUND_DEFAULT_FREQUENCY_HZ;
+uint8_t ultrasoundVolumePercent = 0;
 
 uint32_t clampFrequency(uint32_t frequencyHz)
 {
@@ -61,7 +63,8 @@ bool playUltrasound(uint32_t frequencyHz, uint8_t volumePercent, uint32_t playTi
     }
 
     const uint32_t clampedFrequencyHz = clampFrequency(frequencyHz);
-    const uint32_t duty = volumeToDuty(volumePercent);
+    const uint8_t clampedVolumePercent = volumePercent > 100 ? 100 : volumePercent;
+    const uint32_t duty = volumeToDuty(clampedVolumePercent);
 
     if (ledcSetup(ULTRASOUND_CHANNEL, clampedFrequencyHz, ULTRASOUND_RESOLUTION_BITS) == 0)
     {
@@ -69,6 +72,8 @@ bool playUltrasound(uint32_t frequencyHz, uint8_t volumePercent, uint32_t playTi
     }
 
     ledcWrite(ULTRASOUND_CHANNEL, duty);
+    ultrasoundFrequencyHz = clampedFrequencyHz;
+    ultrasoundVolumePercent = clampedVolumePercent;
     ultrasoundPlaying = duty > 0 && playTimeMs > 0;
     ultrasoundStopAtMs = millis() + playTimeMs;
     return true;
@@ -84,6 +89,7 @@ void stopUltrasound()
     ledcWrite(ULTRASOUND_CHANNEL, 0);
     ultrasoundPlaying = false;
     ultrasoundStopAtMs = 0;
+    ultrasoundVolumePercent = 0;
 }
 
 void updateUltrasoundPwm()
@@ -97,4 +103,45 @@ void updateUltrasoundPwm()
     {
         stopUltrasound();
     }
+}
+
+bool isUltrasoundPlaying()
+{
+    return ultrasoundPlaying;
+}
+
+uint32_t getUltrasoundFrequencyHz()
+{
+    return ultrasoundFrequencyHz;
+}
+
+uint8_t getUltrasoundVolumePercent()
+{
+    return ultrasoundVolumePercent;
+}
+
+uint32_t getUltrasoundRemainingMs()
+{
+    if (!ultrasoundPlaying)
+    {
+        return 0;
+    }
+
+    const int32_t remainingMs = static_cast<int32_t>(ultrasoundStopAtMs - millis());
+    return remainingMs > 0 ? static_cast<uint32_t>(remainingMs) : 0;
+}
+
+uint8_t getUltrasoundPin()
+{
+    return ULTRASOUND_PIN;
+}
+
+uint32_t getUltrasoundMinFrequencyHz()
+{
+    return ULTRASOUND_MIN_FREQUENCY_HZ;
+}
+
+uint32_t getUltrasoundMaxFrequencyHz()
+{
+    return ULTRASOUND_MAX_FREQUENCY_HZ;
 }

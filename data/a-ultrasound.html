@@ -1,0 +1,28 @@
+<h2>Ultrasound Test</h2>
+
+<p>Use GPIO0 hardware PWM to generate an ultrasonic test signal.</p>
+
+<div class="ultrasound-form" data-ultrasound-form>
+    <label class="ultrasound-field">
+        <span>Frequency Hz</span>
+        <input id="ultrasoundFrequency" type="number" min="5000" max="40000" step="100" value="40000">
+    </label>
+
+    <label class="ultrasound-field">
+        <span>Volume %</span>
+        <input id="ultrasoundVolume" type="number" min="0" max="100" step="1" value="50">
+    </label>
+
+    <label class="ultrasound-field">
+        <span>Duration ms</span>
+        <input id="ultrasoundDuration" type="number" min="1" max="60000" step="100" value="1000">
+    </label>
+</div>
+
+<div class="ultrasound-actions">
+    <button type="button" id="ultrasoundStartButton">Start ultrasound</button>
+    <button type="button" id="ultrasoundStopButton">Stop ultrasound</button>
+    <button type="button" id="ultrasoundRefreshButton">Refresh status</button>
+</div>
+
+<pre id="ultrasoundStatus">Ultrasound idle.</pre>
