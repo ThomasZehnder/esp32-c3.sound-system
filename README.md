@@ -30,6 +30,16 @@ Optional:
 * Use DFPlayer DAC_R and DAC_L instead of SPK_1 and SPK_2 when connecting an external amplifier.
 * BUSY is currently not connected in software.
 
+### Ultrasound Output Note
+
+Current software uses GPIO1 for the ultrasound PWM output.
+
+Hardware note:
+
+* Crackling on stop was traced to unstable VCC on the connected output stage.
+* Adding supply buffering close to the load or driver helps, for example a 100 nF ceramic capacitor together with a larger bulk capacitor.
+* Keep GND short and common between the ESP32-C3 and the ultrasound driver stage.
+
 ### DFPlayer SD Card Layout
 
 The current software uses the recommended numbered folder structure:
