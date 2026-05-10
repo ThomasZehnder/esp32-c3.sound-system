@@ -65,6 +65,17 @@ function wireRefreshButtons(article) {
                 return;
             }
 
+            const selectId = button.dataset.jsonSelect;
+            if (selectId) {
+                const selectElement = article.querySelector(`#${selectId}`);
+                const selectedOption = selectElement?.selectedOptions?.[0];
+                if (selectedOption) {
+                    targetElement.dataset.jsonSource = selectedOption.value;
+                    targetElement.dataset.jsonMethod = selectedOption.dataset.method || 'GET';
+                    targetElement.dataset.jsonBody = selectedOption.dataset.body || '';
+                }
+            }
+
             targetElement.textContent = 'Loading...';
             loadJsonIntoElement(targetElement);
         });
@@ -78,12 +89,37 @@ async function loadJsonIntoElement(element) {
     }
 
     try {
-        const response = await fetch(source);
+        const method = element.dataset.jsonMethod || 'GET';
+        const body = element.dataset.jsonBody || '';
+        const requestOptions = { method };
+
+        if (method !== 'GET' && body) {
+            requestOptions.headers = { 'Content-Type': 'application/json' };
+            requestOptions.body = body;
+        }
+
+        const response = await fetch(source, requestOptions);
         if (!response.ok) {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP ${response.status} for ${source}`);
+            }
+
             throw new Error(`HTTP ${response.status} for ${source}`);
         }
 
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+            ? await response.json()
+            : {
+                ok: true,
+                status: response.status,
+                service: `${method} ${source}`,
+                contentType,
+                responseText: await response.text()
+            };
+
         element.textContent = JSON.stringify(data, null, 2);
     } catch (error) {
         element.textContent = `Failed to load JSON: ${error.message}`;
@@ -546,6 +582,10 @@ async function loadAdminSoundConfigIntoElement(element) {
 function loadEmbeddedData(article) {
     const jsonTargets = article.querySelectorAll('[data-json-source]');
     jsonTargets.forEach((element) => {
+        if (element.dataset.jsonAutoload === 'false') {
+            return;
+        }
+
         loadJsonIntoElement(element);
     });
 

@@ -114,6 +114,34 @@ article button {
   margin: 0 0 14px;
 }
 
+.service-selector-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.service-selector-label {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.service-selector {
+  min-width: min(100%, 360px);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(9, 17, 31, 0.72);
+  color: var(--text);
+}
+
+.service-selector-note {
+  margin: 0 0 14px;
+  color: var(--muted);
+}
+
 button {
   appearance: none;
   border: 1px solid rgba(249, 115, 22, 0.35);

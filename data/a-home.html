@@ -1,3 +1,23 @@
 <h2>Assembly Status</h2>
-<button type="button" data-refresh-target="assemblyId">Refresh assembly info</button>
-<pre id="assemblyId" data-json-source="/assembly">Loading...</pre>
+<p>Select a REST service and use refresh to call it.</p>
+
+<div class="service-selector-bar">
+	<label class="service-selector-label" for="restServiceSelect">REST service</label>
+	<select id="restServiceSelect" class="service-selector">
+		<option value="/assembly" data-method="GET">GET /assembly</option>
+		<option value="/sound-config" data-method="GET">GET /sound-config</option>
+		<option value="/sequence-config" data-method="GET">GET /sequence-config</option>
+		<option value="/sequence-config" data-method="POST" data-body='{"sequence":[{"kind":"sound","tag":"dogbell","durationMs":4000},{"kind":"pause","tag":"","durationMs":1500}]}' >POST /sequence-config</option>
+		<option value="/sequence-state" data-method="GET">GET /sequence-state</option>
+		<option value="/sound?name=dogbell" data-method="GET">GET /sound?name=dogbell</option>
+		<option value="/sequence?action=start" data-method="GET">GET /sequence?action=start</option>
+		<option value="/sequence?action=stop" data-method="GET">GET /sequence?action=stop</option>
+		<option value="/volume?value=20" data-method="GET">GET /volume?value=20</option>
+		<option value="/inline" data-method="GET">GET /inline</option>
+	</select>
+	<button type="button" data-refresh-target="assemblyId" data-json-select="restServiceSelect">Refresh selected service</button>
+</div>
+
+<p class="service-selector-note">The POST sample sends a minimal sequence payload. Plain-text responses are wrapped into JSON for display.</p>
+
+<pre id="assemblyId" data-json-source="/assembly" data-json-autoload="false">Select a service, then click refresh.</pre>
