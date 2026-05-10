@@ -556,13 +556,16 @@ function startUltrasoundStatePolling() {
 function wireUltrasoundControls(article) {
     const statusElement = article.querySelector('#ultrasoundStatus');
     const frequencyInput = article.querySelector('#ultrasoundFrequency');
+    const minFrequencyInput = article.querySelector('#ultrasoundMinFrequency');
+    const maxFrequencyInput = article.querySelector('#ultrasoundMaxFrequency');
     const volumeInput = article.querySelector('#ultrasoundVolume');
     const durationInput = article.querySelector('#ultrasoundDuration');
     const startButton = article.querySelector('#ultrasoundStartButton');
+    const randomStartButton = article.querySelector('#ultrasoundRandomStartButton');
     const stopButton = article.querySelector('#ultrasoundStopButton');
     const refreshButton = article.querySelector('#ultrasoundRefreshButton');
 
-    if (!statusElement || !frequencyInput || !volumeInput || !durationInput || !startButton || !stopButton || !refreshButton) {
+    if (!statusElement || !frequencyInput || !minFrequencyInput || !maxFrequencyInput || !volumeInput || !durationInput || !startButton || !randomStartButton || !stopButton || !refreshButton) {
         return;
     }
 
@@ -583,6 +586,27 @@ function wireUltrasoundControls(article) {
             startUltrasoundStatePolling();
         } catch (error) {
             statusElement.textContent = `Failed to start ultrasound: ${error.message}`;
+        }
+    });
+
+    randomStartButton.addEventListener('click', async () => {
+        statusElement.textContent = 'Starting random ultrasound ...';
+
+        try {
+            const minFrequency = Number(minFrequencyInput.value);
+            const maxFrequency = Number(maxFrequencyInput.value);
+            const volume = Number(volumeInput.value);
+            const duration = Number(durationInput.value);
+            const response = await fetch(`/ultrasound?action=random&minFrequency=${encodeURIComponent(minFrequency)}&maxFrequency=${encodeURIComponent(maxFrequency)}&volume=${encodeURIComponent(volume)}&duration=${encodeURIComponent(duration)}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            renderUltrasoundState(statusElement, data);
+            startUltrasoundStatePolling();
+        } catch (error) {
+            statusElement.textContent = `Failed to start random ultrasound: ${error.message}`;
         }
     });
 

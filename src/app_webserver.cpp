@@ -480,7 +480,10 @@ void ultrasoundStateJson()
     String output = "{";
     output += "\"ok\":true,";
     output += "\"pin\":" + String(getUltrasoundPin()) + ",";
+    output += "\"randomMode\":" + String(isUltrasoundRandomMode() ? "true" : "false") + ",";
     output += "\"frequencyHz\":" + String(getUltrasoundFrequencyHz()) + ",";
+    output += "\"randomMinFrequencyHz\":" + String(getUltrasoundRandomMinFrequencyHz()) + ",";
+    output += "\"randomMaxFrequencyHz\":" + String(getUltrasoundRandomMaxFrequencyHz()) + ",";
     output += "\"volumePercent\":" + String(getUltrasoundVolumePercent()) + ",";
     output += "\"remainingMs\":" + String(getUltrasoundRemainingMs()) + ",";
     output += "\"playing\":" + String(isUltrasoundPlaying() ? "true" : "false") + ",";
@@ -517,30 +520,22 @@ void setUltrasound()
         return;
     }
 
-    if (action != "start")
+    if (action != "start" && action != "random")
     {
         setAllowCors();
         server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid action\"}");
         return;
     }
 
-    if (!server.hasArg("frequency") || !server.hasArg("volume") || !server.hasArg("duration"))
+    if (!server.hasArg("volume") || !server.hasArg("duration"))
     {
         setAllowCors();
         server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing parameters\"}");
         return;
     }
 
-    const long frequencyHz = server.arg("frequency").toInt();
     const long volumePercent = server.arg("volume").toInt();
     const long durationMs = server.arg("duration").toInt();
-
-    if (frequencyHz < static_cast<long>(getUltrasoundMinFrequencyHz()) || frequencyHz > static_cast<long>(getUltrasoundMaxFrequencyHz()))
-    {
-        setAllowCors();
-        server.send(400, "application/json", "{\"ok\":false,\"error\":\"frequency out of range\"}");
-        return;
-    }
 
     if (volumePercent < 0 || volumePercent > 100)
     {
@@ -556,12 +551,62 @@ void setUltrasound()
         return;
     }
 
-    const bool ok = playUltrasound(static_cast<uint32_t>(frequencyHz), static_cast<uint8_t>(volumePercent), static_cast<uint32_t>(durationMs));
+    bool ok = false;
+
+    if (action == "start")
+    {
+        if (!server.hasArg("frequency"))
+        {
+            setAllowCors();
+            server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing frequency\"}");
+            return;
+        }
+
+        const long frequencyHz = server.arg("frequency").toInt();
+        if (frequencyHz < static_cast<long>(getUltrasoundMinFrequencyHz()) || frequencyHz > static_cast<long>(getUltrasoundMaxFrequencyHz()))
+        {
+            setAllowCors();
+            server.send(400, "application/json", "{\"ok\":false,\"error\":\"frequency out of range\"}");
+            return;
+        }
+
+        ok = playUltrasound(static_cast<uint32_t>(frequencyHz), static_cast<uint8_t>(volumePercent), static_cast<uint32_t>(durationMs));
+    }
+    else
+    {
+        if (!server.hasArg("minFrequency") || !server.hasArg("maxFrequency"))
+        {
+            setAllowCors();
+            server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing random frequency range\"}");
+            return;
+        }
+
+        const long minFrequencyHz = server.arg("minFrequency").toInt();
+        const long maxFrequencyHz = server.arg("maxFrequency").toInt();
+        if (minFrequencyHz < static_cast<long>(getUltrasoundMinFrequencyHz()) || minFrequencyHz > static_cast<long>(getUltrasoundMaxFrequencyHz()) || maxFrequencyHz < static_cast<long>(getUltrasoundMinFrequencyHz()) || maxFrequencyHz > static_cast<long>(getUltrasoundMaxFrequencyHz()))
+        {
+            setAllowCors();
+            server.send(400, "application/json", "{\"ok\":false,\"error\":\"random frequency range out of range\"}");
+            return;
+        }
+
+        if (minFrequencyHz > maxFrequencyHz)
+        {
+            setAllowCors();
+            server.send(400, "application/json", "{\"ok\":false,\"error\":\"min frequency must be <= max frequency\"}");
+            return;
+        }
+
+        ok = playRandomUltrasound(static_cast<uint32_t>(minFrequencyHz), static_cast<uint32_t>(maxFrequencyHz), static_cast<uint8_t>(volumePercent), static_cast<uint32_t>(durationMs));
+    }
 
     String output = "{";
     output += "\"ok\":" + String(ok ? "true" : "false") + ",";
     output += "\"playing\":" + String(isUltrasoundPlaying() ? "true" : "false") + ",";
+    output += "\"randomMode\":" + String(isUltrasoundRandomMode() ? "true" : "false") + ",";
     output += "\"frequencyHz\":" + String(getUltrasoundFrequencyHz()) + ",";
+    output += "\"randomMinFrequencyHz\":" + String(getUltrasoundRandomMinFrequencyHz()) + ",";
+    output += "\"randomMaxFrequencyHz\":" + String(getUltrasoundRandomMaxFrequencyHz()) + ",";
     output += "\"volumePercent\":" + String(getUltrasoundVolumePercent()) + ",";
     output += "\"remainingMs\":" + String(getUltrasoundRemainingMs());
     output += "}";

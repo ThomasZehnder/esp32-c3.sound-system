@@ -10,15 +10,22 @@ namespace
     constexpr uint32_t ULTRASOUND_DEFAULT_FREQUENCY_HZ = 5000;
     constexpr uint32_t ULTRASOUND_MAX_DUTY = (1U << ULTRASOUND_RESOLUTION_BITS) - 1U;
     constexpr uint32_t ULTRASOUND_MAX_EFFECTIVE_DUTY = ULTRASOUND_MAX_DUTY / 2U;
-    constexpr uint8_t ULTRASOUND_RAMP_DOWN_STEPS = 8;
-    constexpr uint8_t ULTRASOUND_RAMP_DOWN_DELAY_MS = 2;
+
+    constexpr uint32_t ULTRASOUND_RANDOM_STEP_MS = 500;
 
     bool ultrasoundAttached = false;
     bool ultrasoundPinAttached = false;
     bool ultrasoundPlaying = false;
+    bool ultrasoundRandomMode = false;
     uint32_t ultrasoundStopAtMs = 0;
+    uint32_t ultrasoundNextRandomStepAtMs = 0;
     uint32_t ultrasoundFrequencyHz = ULTRASOUND_DEFAULT_FREQUENCY_HZ;
+    uint32_t ultrasoundRandomMinFrequencyHz = ULTRASOUND_DEFAULT_FREQUENCY_HZ;
+    uint32_t ultrasoundRandomMaxFrequencyHz = ULTRASOUND_DEFAULT_FREQUENCY_HZ;
     uint8_t ultrasoundVolumePercent = 0;
+
+    void attachUltrasoundPin();
+    void releaseUltrasoundPin();
 
     uint32_t clampFrequency(uint32_t frequencyHz)
     {
@@ -39,6 +46,36 @@ namespace
     {
         const uint8_t clampedVolume = volumePercent > 100 ? 100 : volumePercent;
         return (ULTRASOUND_MAX_EFFECTIVE_DUTY * clampedVolume) / 100U;
+    }
+
+    bool configureUltrasoundOutput(uint32_t frequencyHz, uint8_t volumePercent)
+    {
+        const uint32_t clampedFrequencyHz = clampFrequency(frequencyHz);
+        const uint8_t clampedVolumePercent = volumePercent > 100 ? 100 : volumePercent;
+        const uint32_t duty = volumeToDuty(clampedVolumePercent);
+
+        if (ledcSetup(ULTRASOUND_CHANNEL, clampedFrequencyHz, ULTRASOUND_RESOLUTION_BITS) == 0)
+        {
+            return false;
+        }
+
+        Serial.println("Ultrasound PWM frequency set to " + String(clampedFrequencyHz) + " Hz with duty " + String(duty) + "/" + String(ULTRASOUND_MAX_DUTY));
+
+        attachUltrasoundPin();
+        ledcWrite(ULTRASOUND_CHANNEL, duty);
+        ultrasoundFrequencyHz = clampedFrequencyHz;
+        ultrasoundVolumePercent = clampedVolumePercent;
+        return true;
+    }
+
+    uint32_t randomFrequencyInRange(uint32_t minFrequencyHz, uint32_t maxFrequencyHz)
+    {
+        if (minFrequencyHz >= maxFrequencyHz)
+        {
+            return minFrequencyHz;
+        }
+
+        return static_cast<uint32_t>(random(static_cast<long>(minFrequencyHz), static_cast<long>(maxFrequencyHz + 1U)));
     }
 
     void attachUltrasoundPin()
@@ -75,6 +112,7 @@ void initUltrasoundPwm()
     }
 
     ultrasoundAttached = ledcSetup(ULTRASOUND_CHANNEL, ULTRASOUND_DEFAULT_FREQUENCY_HZ, ULTRASOUND_RESOLUTION_BITS) > 0;
+    randomSeed(micros());
 }
 
 bool playUltrasound(uint32_t frequencyHz, uint8_t volumePercent, uint32_t playTimeMs)
@@ -85,22 +123,51 @@ bool playUltrasound(uint32_t frequencyHz, uint8_t volumePercent, uint32_t playTi
         return false;
     }
 
-    const uint32_t clampedFrequencyHz = clampFrequency(frequencyHz);
-    const uint8_t clampedVolumePercent = volumePercent > 100 ? 100 : volumePercent;
-    const uint32_t duty = volumeToDuty(clampedVolumePercent);
-
-    if (ledcSetup(ULTRASOUND_CHANNEL, clampedFrequencyHz, ULTRASOUND_RESOLUTION_BITS) == 0)
+    if (!configureUltrasoundOutput(frequencyHz, volumePercent))
     {
         return false;
     }
-    Serial.println("Ultrasound PWM frequency set to " + String(clampedFrequencyHz) + " Hz with duty " + String(duty) + "/" + String(ULTRASOUND_MAX_DUTY));
 
-    attachUltrasoundPin();
-    ledcWrite(ULTRASOUND_CHANNEL, duty);
-    ultrasoundFrequencyHz = clampedFrequencyHz;
-    ultrasoundVolumePercent = clampedVolumePercent;
-    ultrasoundPlaying = duty > 0 && playTimeMs > 0;
+    ultrasoundRandomMode = false;
+    ultrasoundRandomMinFrequencyHz = ultrasoundFrequencyHz;
+    ultrasoundRandomMaxFrequencyHz = ultrasoundFrequencyHz;
+    ultrasoundPlaying = ultrasoundVolumePercent > 0 && playTimeMs > 0;
     ultrasoundStopAtMs = millis() + playTimeMs;
+    ultrasoundNextRandomStepAtMs = 0;
+
+    if (!ultrasoundPlaying)
+    {
+        stopUltrasound();
+    }
+
+    return true;
+}
+
+bool playRandomUltrasound(uint32_t minFrequencyHz, uint32_t maxFrequencyHz, uint8_t volumePercent, uint32_t playTimeMs)
+{
+    initUltrasoundPwm();
+    if (!ultrasoundAttached)
+    {
+        return false;
+    }
+
+    const uint32_t clampedMinFrequencyHz = clampFrequency(minFrequencyHz);
+    const uint32_t clampedMaxFrequencyHz = clampFrequency(maxFrequencyHz);
+    const uint32_t randomMinFrequencyHz = clampedMinFrequencyHz < clampedMaxFrequencyHz ? clampedMinFrequencyHz : clampedMaxFrequencyHz;
+    const uint32_t randomMaxFrequencyHz = clampedMinFrequencyHz < clampedMaxFrequencyHz ? clampedMaxFrequencyHz : clampedMinFrequencyHz;
+    const uint32_t firstFrequencyHz = randomFrequencyInRange(randomMinFrequencyHz, randomMaxFrequencyHz);
+
+    if (!configureUltrasoundOutput(firstFrequencyHz, volumePercent))
+    {
+        return false;
+    }
+
+    ultrasoundRandomMode = true;
+    ultrasoundRandomMinFrequencyHz = randomMinFrequencyHz;
+    ultrasoundRandomMaxFrequencyHz = randomMaxFrequencyHz;
+    ultrasoundPlaying = ultrasoundVolumePercent > 0 && playTimeMs > 0;
+    ultrasoundStopAtMs = millis() + playTimeMs;
+    ultrasoundNextRandomStepAtMs = millis() + ULTRASOUND_RANDOM_STEP_MS;
 
     if (!ultrasoundPlaying)
     {
@@ -119,7 +186,9 @@ void stopUltrasound()
 
     releaseUltrasoundPin();
     ultrasoundPlaying = false;
+    ultrasoundRandomMode = false;
     ultrasoundStopAtMs = 0;
+    ultrasoundNextRandomStepAtMs = 0;
     Serial.println("Ultrasound PWM stopped.");  
     ultrasoundVolumePercent = 0;
 }
@@ -134,12 +203,25 @@ void updateUltrasoundPwm()
     if (static_cast<int32_t>(millis() - ultrasoundStopAtMs) >= 0)
     {
         stopUltrasound();
+        return;
+    }
+
+    if (ultrasoundRandomMode && static_cast<int32_t>(millis() - ultrasoundNextRandomStepAtMs) >= 0)
+    {
+        const uint32_t nextFrequencyHz = randomFrequencyInRange(ultrasoundRandomMinFrequencyHz, ultrasoundRandomMaxFrequencyHz);
+        configureUltrasoundOutput(nextFrequencyHz, ultrasoundVolumePercent);
+        ultrasoundNextRandomStepAtMs = millis() + ULTRASOUND_RANDOM_STEP_MS;
     }
 }
 
 bool isUltrasoundPlaying()
 {
     return ultrasoundPlaying;
+}
+
+bool isUltrasoundRandomMode()
+{
+    return ultrasoundRandomMode;
 }
 
 uint32_t getUltrasoundFrequencyHz()
@@ -176,4 +258,14 @@ uint32_t getUltrasoundMinFrequencyHz()
 uint32_t getUltrasoundMaxFrequencyHz()
 {
     return ULTRASOUND_MAX_FREQUENCY_HZ;
+}
+
+uint32_t getUltrasoundRandomMinFrequencyHz()
+{
+    return ultrasoundRandomMinFrequencyHz;
+}
+
+uint32_t getUltrasoundRandomMaxFrequencyHz()
+{
+    return ultrasoundRandomMaxFrequencyHz;
 }
