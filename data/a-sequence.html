@@ -1,0 +1,16 @@
+<h2>Sequence Editor</h2>
+
+<p>Edit the runtime sequence here. Up to 20 steps are allowed, with either a sound or a pause and a duration in milliseconds.</p>
+
+<div class="sequence-editor-actions">
+    <button type="button" id="loadSequenceEditorButton">Load actual configuration</button>
+    <button type="button" id="saveSequenceEditorButton">Save edited sequence</button>
+</div>
+
+<p id="sequenceSourceHint" class="sequence-source-hint">Sequence source: loading...</p>
+
+<div id="sequenceEditor" data-sequence-editor-source="/sequence-config">
+    Loading sequence editor...
+</div>
+
+<pre id="sequenceEditorStatus">Editor idle.</pre>

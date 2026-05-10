@@ -1,0 +1,16 @@
+<h2>Admin Config</h2>
+<p>This page shows the backend-driven sound configuration that is used by both the firmware and the frontend.</p>
+
+<button type="button" data-refresh-target="soundConfigAdminRaw">Refresh sound config</button>
+
+<section class="admin-section">
+	<h3>Configured Sounds</h3>
+	<div id="soundConfigAdminList" class="sound-admin-list" data-admin-sound-config-source="/sound-config">
+		Loading sound definitions...
+	</div>
+</section>
+
+<section class="admin-section">
+	<h3>Raw JSON</h3>
+	<pre id="soundConfigAdminRaw" data-json-source="/sound-config">Loading...</pre>
+</section>

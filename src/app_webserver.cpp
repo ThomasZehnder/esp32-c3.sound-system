@@ -1,0 +1,523 @@
+#include "app_webserver.h"
+
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <LittleFS.h>
+#include <WebServer.h>
+#include <WiFi.h>
+
+#include "dfplayer.h"
+
+namespace
+{
+WebServer server(80);
+bool *filesystemMounted = nullptr;
+bool *wifiConnected = nullptr;
+String *selectedSound = nullptr;
+SoundTriggerCallback soundTrigger = nullptr;
+
+void logRequest(const String &path)
+{
+    Serial.print("HTTP request: ");
+    Serial.println(path);
+}
+
+void setAllowCors()
+{
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+}
+
+String getContentType(const String &path)
+{
+    if (path.endsWith(".html"))
+        return "text/html";
+    if (path.endsWith(".css"))
+        return "text/css";
+    if (path.endsWith(".js"))
+        return "application/javascript";
+    if (path.endsWith(".json"))
+        return "application/json";
+    if (path.endsWith(".png"))
+        return "image/png";
+    if (path.endsWith(".jpg") || path.endsWith(".jpeg"))
+        return "image/jpeg";
+    if (path.endsWith(".gif"))
+        return "image/gif";
+    if (path.endsWith(".svg"))
+        return "image/svg+xml";
+    if (path.endsWith(".ico"))
+        return "image/x-icon";
+    return "text/plain";
+}
+
+bool handleFileRead(String path)
+{
+    logRequest(path);
+
+    if (!filesystemMounted || !*filesystemMounted)
+    {
+        Serial.println("LittleFS not mounted; cannot serve file.");
+        return false;
+    }
+
+    if (path.endsWith("/"))
+    {
+        path += "index.html";
+    }
+
+    if (!LittleFS.exists(path))
+    {
+        Serial.print("LittleFS file not found: ");
+        Serial.println(path);
+        return false;
+    }
+
+    File file = LittleFS.open(path, "r");
+    if (!file)
+    {
+        Serial.print("LittleFS open failed: ");
+        Serial.println(path);
+        return false;
+    }
+
+    const size_t fileSize = file.size();
+    const String contentType = getContentType(path);
+    Serial.print("Serving file: ");
+    Serial.print(path);
+    Serial.print(" (");
+    Serial.print(fileSize);
+    Serial.println(" bytes)");
+
+    const size_t bytesSent = server.streamFile(file, contentType);
+    file.close();
+
+    Serial.print("Sent bytes: ");
+    Serial.println(bytesSent);
+
+    if (bytesSent != fileSize)
+    {
+        Serial.println("Stream incomplete.");
+        return false;
+    }
+
+    return true;
+}
+
+void serveFileOr404(const String &path)
+{
+    if (!handleFileRead(path))
+    {
+        server.send(404, "text/plain", "404: " + path + " not found");
+    }
+}
+
+void registerStaticRoute(const char *routePath)
+{
+    server.on(routePath, HTTP_GET, [routePath]()
+              { serveFileOr404(String(routePath)); });
+}
+
+void assemblyJson()
+{
+    if (wifiConnected)
+    {
+        *wifiConnected = WiFi.status() == WL_CONNECTED;
+    }
+
+    const bool isWifiConnected = wifiConnected && *wifiConnected;
+    String hostname = WiFi.getHostname() ? String(WiFi.getHostname()) : String("");
+    String ipAddress = isWifiConnected ? WiFi.localIP().toString() : String("");
+    String macAddress = WiFi.macAddress();
+    String ssid = isWifiConnected ? WiFi.SSID() : String("");
+
+    String output = "{";
+    output += "\"device\":\"ESP32-C3 OLED\",";
+    output += "\"hostname\":\"" + hostname + "\",";
+    output += "\"chipModel\":\"" + String(ESP.getChipModel()) + "\",";
+    output += "\"chipRevision\":" + String(ESP.getChipRevision()) + ",";
+    output += "\"cpuFreqMHz\":" + String(ESP.getCpuFreqMHz()) + ",";
+    output += "\"flashSize\":" + String(ESP.getFlashChipSize()) + ",";
+    output += "\"freeHeap\":" + String(ESP.getFreeHeap()) + ",";
+    output += "\"sketchSize\":" + String(ESP.getSketchSize()) + ",";
+    output += "\"freeSketchSpace\":" + String(ESP.getFreeSketchSpace()) + ",";
+    output += "\"millis\":" + String(millis()) + ",";
+    output += "\"wifiConnected\":" + String(isWifiConnected ? "true" : "false") + ",";
+    output += "\"filesystemMounted\":" + String(filesystemMounted && *filesystemMounted ? "true" : "false") + ",";
+    output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("none")) + "\",";
+    output += "\"ssid\":\"" + ssid + "\",";
+    output += "\"localIp\":\"" + ipAddress + "\",";
+    output += "\"macAddress\":\"" + macAddress + "\"";
+    if (isWifiConnected)
+    {
+        output += ",\"rssi\":" + String(WiFi.RSSI());
+    }
+    output += "}";
+
+    setAllowCors();
+    server.send(200, "application/json", output);
+}
+
+void soundConfigJson()
+{
+    size_t soundCount = 0;
+    const SoundDefinition *sounds = getSoundDefinitions(soundCount);
+    size_t sequenceCount = 0;
+    const SoundSequenceStep *sequence = getSoundSequence(sequenceCount);
+
+    String output = "{";
+    output += "\"sounds\":[";
+
+    for (size_t index = 0; index < soundCount; ++index)
+    {
+        const SoundDefinition &sound = sounds[index];
+        if (index > 0)
+        {
+            output += ",";
+        }
+
+        output += "{";
+        output += "\"tag\":\"" + String(sound.tag) + "\",";
+        output += "\"buttonLabel\":\"" + String(sound.buttonLabel) + "\",";
+        output += "\"description\":\"" + String(sound.description) + "\",";
+        output += "\"folder\":" + String(sound.folder) + ",";
+        output += "\"track\":" + String(sound.track);
+        output += "}";
+    }
+
+    output += "],";
+    output += "\"sequence\":[";
+
+    for (size_t index = 0; index < sequenceCount; ++index)
+    {
+        const SoundSequenceStep &step = sequence[index];
+        if (index > 0)
+        {
+            output += ",";
+        }
+
+        output += "{";
+        output += "\"kind\":\"" + String(step.kind) + "\",";
+        output += "\"tag\":\"" + String(step.tag) + "\",";
+        output += "\"durationMs\":" + String(step.durationMs) + ",";
+        output += "\"description\":\"" + String(step.description) + "\"";
+        output += "}";
+    }
+
+    output += "],";
+    output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("")) + "\",";
+    output += "\"sequenceRunning\":" + String(isSoundSequenceRunning() ? "true" : "false") + ",";
+    output += "\"volume\":" + String(getDfPlayerVolume()) + ",";
+    output += "\"volumeMin\":" + String(getDfPlayerMinVolume()) + ",";
+    output += "\"volumeMax\":" + String(getDfPlayerMaxVolume());
+    output += "}";
+
+    setAllowCors();
+    server.send(200, "application/json", output);
+}
+
+void sequenceConfigJson()
+{
+    size_t soundCount = 0;
+    const SoundDefinition *sounds = getSoundDefinitions(soundCount);
+    size_t sequenceCount = 0;
+    const SoundSequenceStep *sequence = getSoundSequence(sequenceCount);
+
+    String output = "{";
+    output += "\"maxSteps\":" + String(getMaxSoundSequenceSteps()) + ",";
+    output += "\"sequenceSource\":\"" + String(isSoundSequenceLoadedFromFilesystem() ? "littlefs" : "default") + "\",";
+    output += "\"sounds\":[";
+
+    for (size_t index = 0; index < soundCount; ++index)
+    {
+        const SoundDefinition &sound = sounds[index];
+        if (index > 0)
+        {
+            output += ",";
+        }
+
+        output += "{";
+        output += "\"tag\":\"" + String(sound.tag) + "\",";
+        output += "\"buttonLabel\":\"" + String(sound.buttonLabel) + "\",";
+        output += "\"description\":\"" + String(sound.description) + "\"";
+        output += "}";
+    }
+
+    output += "],";
+    output += "\"sequence\":[";
+
+    for (size_t index = 0; index < sequenceCount; ++index)
+    {
+        const SoundSequenceStep &step = sequence[index];
+        if (index > 0)
+        {
+            output += ",";
+        }
+
+        output += "{";
+        output += "\"kind\":\"" + String(step.kind) + "\",";
+        output += "\"tag\":\"" + String(step.tag) + "\",";
+        output += "\"durationMs\":" + String(step.durationMs);
+        output += "}";
+    }
+
+    output += "]}";
+
+    setAllowCors();
+    server.send(200, "application/json", output);
+}
+
+void saveSequenceConfig()
+{
+    if (!server.hasArg("plain"))
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing body\"}");
+        return;
+    }
+
+    JsonDocument document;
+    DeserializationError error = deserializeJson(document, server.arg("plain"));
+    if (error)
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid json\"}");
+        return;
+    }
+
+    JsonArray steps = document["sequence"].as<JsonArray>();
+    if (steps.isNull())
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing sequence\"}");
+        return;
+    }
+
+    const size_t stepCount = steps.size();
+    if (stepCount == 0 || stepCount > getMaxSoundSequenceSteps())
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid step count\"}");
+        return;
+    }
+
+    SoundSequenceStep tempSteps[MAX_SOUND_SEQUENCE_STEPS];
+    char tempKinds[MAX_SOUND_SEQUENCE_STEPS][8] = {};
+    char tempTags[MAX_SOUND_SEQUENCE_STEPS][24] = {};
+    char tempDescriptions[MAX_SOUND_SEQUENCE_STEPS][80] = {};
+
+    size_t index = 0;
+    for (JsonObject step : steps)
+    {
+        const char *kind = step["kind"] | "";
+        const char *tag = step["tag"] | "";
+        const uint32_t durationMs = step["durationMs"] | 0;
+
+        snprintf(tempKinds[index], sizeof(tempKinds[index]), "%s", kind);
+        snprintf(tempTags[index], sizeof(tempTags[index]), "%s", tag);
+        snprintf(tempDescriptions[index], sizeof(tempDescriptions[index]), "%s", strcmp(kind, "pause") == 0 ? "Pause step" : tag);
+
+        tempSteps[index].kind = tempKinds[index];
+        tempSteps[index].tag = tempTags[index];
+        tempSteps[index].durationMs = durationMs;
+        tempSteps[index].description = tempDescriptions[index];
+        ++index;
+    }
+
+    const bool ok = setSoundSequence(tempSteps, stepCount);
+    const bool persisted = ok ? saveSoundSequenceToFilesystem() : false;
+    String output = "{";
+    output += "\"ok\":" + String(ok ? "true" : "false") + ",";
+    output += "\"count\":" + String(stepCount) + ",";
+    output += "\"persisted\":" + String(persisted ? "true" : "false");
+    output += "}";
+
+    setAllowCors();
+    server.send(ok && persisted ? 200 : (ok ? 503 : 400), "application/json", output);
+}
+
+void setVolume()
+{
+    if (!server.hasArg("value"))
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing value\"}");
+        return;
+    }
+
+    const int requestedValue = server.arg("value").toInt();
+    if (requestedValue < getDfPlayerMinVolume() || requestedValue > getDfPlayerMaxVolume())
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"volume out of range\"}");
+        return;
+    }
+
+    const bool ok = setDfPlayerVolume(static_cast<uint8_t>(requestedValue));
+
+    String output = "{";
+    output += "\"ok\":" + String(ok ? "true" : "false") + ",";
+    output += "\"volume\":" + String(getDfPlayerVolume());
+    output += "}";
+
+    setAllowCors();
+    server.send(ok ? 200 : 503, "application/json", output);
+}
+
+void sequenceStateJson()
+{
+    size_t sequenceCount = 0;
+    const SoundSequenceStep *sequence = getSoundSequence(sequenceCount);
+    const int currentIndex = getSoundSequenceCurrentIndex();
+
+    String output = "{";
+    output += "\"sequenceRunning\":" + String(isSoundSequenceRunning() ? "true" : "false") + ",";
+    output += "\"stepActive\":" + String(isSoundSequenceStepActive() ? "true" : "false") + ",";
+    output += "\"currentIndex\":" + String(currentIndex) + ",";
+    output += "\"elapsedMs\":" + String(getSoundSequenceElapsedMs()) + ",";
+    output += "\"remainingMs\":" + String(getSoundSequenceRemainingMs()) + ",";
+    output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("")) + "\"";
+
+    if (currentIndex >= 0 && static_cast<size_t>(currentIndex) < sequenceCount)
+    {
+        const SoundSequenceStep &step = sequence[currentIndex];
+        output += ",\"currentStep\":{";
+        output += "\"kind\":\"" + String(step.kind) + "\",";
+        output += "\"tag\":\"" + String(step.tag) + "\",";
+        output += "\"durationMs\":" + String(step.durationMs) + ",";
+        output += "\"description\":\"" + String(step.description) + "\"";
+        output += "}";
+    }
+
+    output += "}";
+
+    setAllowCors();
+    server.send(200, "application/json", output);
+}
+
+void setSequence()
+{
+    if (!server.hasArg("action"))
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing action\"}");
+        return;
+    }
+
+    const String action = server.arg("action");
+    bool ok = false;
+
+    if (action == "start")
+    {
+        ok = startSoundSequence();
+        if (ok && selectedSound)
+        {
+            *selectedSound = "sequence";
+        }
+    }
+    else if (action == "stop")
+    {
+        stopSoundSequence();
+        ok = true;
+        if (selectedSound)
+        {
+            *selectedSound = "stop";
+        }
+    }
+    else
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"invalid action\"}");
+        return;
+    }
+
+    String output = "{";
+    output += "\"ok\":" + String(ok ? "true" : "false") + ",";
+    output += "\"sequenceRunning\":" + String(isSoundSequenceRunning() ? "true" : "false") + ",";
+    output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("")) + "\"";
+    output += "}";
+
+    setAllowCors();
+    server.send(ok ? 200 : 503, "application/json", output);
+}
+
+void setSound()
+{
+    if (!server.hasArg("name"))
+    {
+        setAllowCors();
+        server.send(400, "application/json", "{\"ok\":false,\"error\":\"missing name\"}");
+        return;
+    }
+
+    String soundName = server.arg("name");
+    bool started = false;
+
+    if (selectedSound)
+    {
+        *selectedSound = soundName;
+        Serial.print("Selected sound: ");
+        Serial.println(*selectedSound);
+    }
+
+    if (soundTrigger)
+    {
+        started = soundTrigger(soundName);
+    }
+
+    String output = "{";
+    output += "\"ok\":" + String(started ? "true" : "false") + ",";
+    output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("")) + "\"";
+    output += "}";
+
+    setAllowCors();
+    server.send(200, "application/json", output);
+}
+}
+
+void setupWebServer(bool *filesystemMountedState, bool *wifiConnectedState, String *selectedSoundState, SoundTriggerCallback soundTriggerCallback)
+{
+    filesystemMounted = filesystemMountedState;
+    wifiConnected = wifiConnectedState;
+    selectedSound = selectedSoundState;
+    soundTrigger = soundTriggerCallback;
+
+    server.on("/", HTTP_GET, []()
+              { serveFileOr404("/index.html"); });
+
+    registerStaticRoute("/index.html");
+    registerStaticRoute("/scripts.js");
+    registerStaticRoute("/style.css");
+    registerStaticRoute("/favicon.svg");
+    registerStaticRoute("/a-home.html");
+    registerStaticRoute("/a-sounds.html");
+    registerStaticRoute("/a-config.html");
+    registerStaticRoute("/a-sequence.html");
+
+    server.on("/assembly", HTTP_GET, assemblyJson);
+    server.on("/sound-config", HTTP_GET, soundConfigJson);
+    server.on("/sequence-config", HTTP_GET, sequenceConfigJson);
+    server.on("/sequence-config", HTTP_POST, saveSequenceConfig);
+    server.on("/sequence-state", HTTP_GET, sequenceStateJson);
+    server.on("/sound", HTTP_GET, setSound);
+    server.on("/sequence", HTTP_GET, setSequence);
+    server.on("/volume", HTTP_GET, setVolume);
+
+    server.on("/inline", []()
+              { server.send(200, "text/plain", "this works as well"); });
+
+    server.onNotFound([]()
+                      {
+                          if (!handleFileRead(server.uri()))
+                          {
+                              server.send(404, "text/plain", "404: Not Found");
+                          } });
+
+    server.begin();
+    Serial.println("HTTP server started.");
+}
+
+void handleWebServerClient()
+{
+    server.handleClient();
+}

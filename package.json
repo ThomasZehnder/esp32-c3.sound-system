@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "handlebars": "^4.7.8"
+  },
+  "scripts": {
+    "generate esp configs": "node akenza/generate-esp-configs.js"
+  }
+}

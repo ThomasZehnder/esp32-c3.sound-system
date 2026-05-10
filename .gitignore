@@ -1,0 +1,20 @@
+.pio
+src/credentials.h
+/node_modules
+
+
+*.log
+
+login.credentials
+
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+
+data_old/config_main copy_2.json
+data_old/config_wlan copy_2.json
+data_old/config_httpmqtt copy_2.json
+
+.vscode/c_cpp_properties_tze_001.json
+.vscode/c_cpp_properties_tze_002.json
+.vscode/launch_tze.json
+test/*.json

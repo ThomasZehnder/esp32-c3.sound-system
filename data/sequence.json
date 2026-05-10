@@ -1,0 +1,50 @@
+[
+    {
+      "kind": "sound",
+      "tag": "dogbell",
+      "durationMs": 4000,
+      "description": "Hunde Gebäll"
+    },
+    {
+      "kind": "pause",
+      "tag": "",
+      "durationMs": 1401,
+      "description": "Pause step"
+    },
+    {
+      "kind": "sound",
+      "tag": "lion",
+      "durationMs": 5000,
+      "description": "Löwen Gebrüll"
+    },
+    {
+      "kind": "pause",
+      "tag": "",
+      "durationMs": 2000,
+      "description": "Pause step"
+    },
+    {
+      "kind": "sound",
+      "tag": "diesel",
+      "durationMs": 4500,
+      "description": "Diesel Motor sound"
+    },
+    {
+      "kind": "pause",
+      "tag": "",
+      "durationMs": 2500,
+      "description": "Pause step"
+    },
+    {
+      "kind": "sound",
+      "tag": "wolf",
+      "durationMs": 5000,
+      "description": "Wolf Gehäule"
+    },
+    {
+      "kind": "pause",
+      "tag": "",
+      "durationMs": 3000,
+      "description": "Pause step"
+    }
+]
