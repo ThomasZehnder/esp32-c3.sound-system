@@ -5,6 +5,7 @@
 #include "dfplayer.h"
 #include "display.h"
 #include "app_webserver.h"
+#include "ultrasound_pwm.h"
 
 // ====== PIN CONFIG ======
 #define LED_PIN 8 // blue led on ESP32-C3-DevKitM-1, GPIO8, is connected to GND via a resistor, so HIGH turns it ON
@@ -33,6 +34,7 @@ void setup()
     renderDisplay("ESP32-C3 OLED", "Init OK", "", "");
 
     initDfPlayer();
+    initUltrasoundPwm();
 
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID_1, WIFI_PASSWORD_1);
@@ -84,6 +86,7 @@ void loop()
     wifiConnected = WiFi.status() == WL_CONNECTED;
     handleWebServerClient();
     updateDfPlayerScheduler();
+    updateUltrasoundPwm();
 
     // ===== LED BLINK =====
     if (millis() - lastBlink > 500)
