@@ -56,4 +56,19 @@ If you want to add more groups later, use folders like /02, /03, ... with number
 
 In VSCode see elements in the buttom left corner to transfer projekt to arduino board.
 
+### WiFi Fallback Configuration
+
+The firmware tries the configured WiFi networks in this order during boot.
+
+The default credentials are read from [src/credentials.h](src/credentials.h). The current fallback order in firmware is:
+
+* `WIFI_SSID_1`, `WIFI_PASSWORD_1`
+* `WIFI_SSID_2`, `WIFI_PASSWORD_2`
+* `WIFI_SSID_3`, `WIFI_PASSWORD_3`
+
 ### Sample Configuration
+
+```cpp
+#define WIFI_SSID_1 "mySSID"
+#define WIFI_PASSWORD_1 "myPassword"
+```

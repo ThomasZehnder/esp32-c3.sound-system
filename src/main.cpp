@@ -15,11 +15,60 @@ namespace
 constexpr uint8_t DFPLAYER_INIT_ATTEMPTS = 4;
 constexpr uint32_t DFPLAYER_INITIAL_DELAY_MS = 750;
 constexpr uint32_t DFPLAYER_RETRY_DELAY_MS = 500;
+constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 15000;
+
+struct WifiCredential
+{
+    const char *ssid;
+    const char *password;
+};
+
+constexpr WifiCredential WIFI_CREDENTIALS[] = {
+    {WIFI_SSID_1, WIFI_PASSWORD_1},
+    {WIFI_SSID_2, WIFI_PASSWORD_2},
+    {WIFI_SSID_3, WIFI_PASSWORD_3},
+};
 
 void logBootStep(const String &message)
 {
     Serial.print("[BOOT] ");
     Serial.println(message);
+}
+
+bool connectToConfiguredWifi()
+{
+    for (const WifiCredential &credential : WIFI_CREDENTIALS)
+    {
+        logBootStep("connect WiFi " + String(credential.ssid));
+        renderDisplay("ESP32-C3 OLED", "Connecting", credential.ssid, "");
+
+        Serial.print("Connecting to WiFi: ");
+        Serial.println(credential.ssid);
+
+        WiFi.disconnect(true, true);
+        delay(100);
+        WiFi.begin(credential.ssid, credential.password);
+
+        const unsigned long wifiStart = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < WIFI_CONNECT_TIMEOUT_MS)
+        {
+            delay(250);
+            Serial.print('.');
+        }
+
+        Serial.println();
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            Serial.print("WiFi connected. IP: ");
+            Serial.println(WiFi.localIP());
+            return true;
+        }
+
+        Serial.print("WiFi connection failed for ");
+        Serial.println(credential.ssid);
+    }
+
+    return false;
 }
 }
 
@@ -71,26 +120,10 @@ void setup()
 
     logBootStep("start WiFi");
     WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID_1, WIFI_PASSWORD_1);
-
-    renderDisplay("ESP32-C3 OLED", "Connecting", WIFI_SSID_1, "");
-
-    Serial.print("Connecting to WiFi: ");
-    Serial.println(WIFI_SSID_1);
-
-    unsigned long wifiStart = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 15000)
-    {
-        delay(250);
-        Serial.print('.');
-    }
-
-    wifiConnected = WiFi.status() == WL_CONNECTED;
-    Serial.println();
+    wifiConnected = connectToConfiguredWifi();
     if (wifiConnected)
     {
-        Serial.print("WiFi connected. IP: ");
-        Serial.println(WiFi.localIP());
+        logBootStep("WiFi connected");
     }
     else
     {
