@@ -897,7 +897,36 @@ async function loadCurrentRoute() {
     }
 }
 
+function initTheme() {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light') {
+        document.documentElement.classList.add('light');
+    }
+}
+
+function setupThemeToggle() {
+    const toggle = document.getElementById('themeToggle');
+    if (!toggle) {
+        return;
+    }
+
+    toggle.checked = document.documentElement.classList.contains('light');
+
+    toggle.addEventListener('change', () => {
+        if (toggle.checked) {
+            document.documentElement.classList.add('light');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.classList.remove('light');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+}
+
 function initializeApp() {
+    initTheme();
+    setupThemeToggle();
+
     if (!window.location.hash) {
         window.location.hash = '#assembly';
         return;
