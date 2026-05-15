@@ -1,19 +1,27 @@
 #include "ir_sensor.h"
 
+#include <Preferences.h>
 #include "dfplayer.h"
 
 namespace
 {
 constexpr uint8_t IR_PIN = 2; // GPIO2; LOW = beam broken (object detected)
+constexpr const char *NVS_NAMESPACE = "ir_sensor";
+constexpr const char *NVS_KEY_COUNT = "animalCount";
 
 bool irDetected = false;
 bool irPrevDetected = false;
 uint32_t animalDetectedCount = 0;
+Preferences preferences;
 }
 
 void initIrSensor()
 {
     pinMode(IR_PIN, INPUT_PULLUP);
+    preferences.begin(NVS_NAMESPACE, false);
+    animalDetectedCount = preferences.getUInt(NVS_KEY_COUNT, 0);
+    Serial.print("[IR] Loaded animal count from NVS: ");
+    Serial.println(animalDetectedCount);
 }
 
 void updateIrSensor()
@@ -23,6 +31,7 @@ void updateIrSensor()
     if (irDetected && !irPrevDetected)
     {
         ++animalDetectedCount;
+        preferences.putUInt(NVS_KEY_COUNT, animalDetectedCount);
         Serial.print("[IR] pos edge: ");
         Serial.println(getIrDetectedString());
         if (!isSoundSequenceRunning() && !isSequenceUserStopped())
