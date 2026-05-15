@@ -1,5 +1,7 @@
 #include "ir_sensor.h"
 
+#include "dfplayer.h"
+
 namespace
 {
 constexpr uint8_t IR_PIN = 2; // GPIO2; LOW = beam broken (object detected)
@@ -21,6 +23,11 @@ void updateIrSensor()
     {
         Serial.print("[IR] pos edge: ");
         Serial.println(getIrDetectedString());
+        if (!isSoundSequenceRunning())
+        {
+            Serial.print("[IR] Start Sound Sequence");
+            startSoundSequence(SequenceMode::ONCE);
+        }
     }
     else if (!irDetected && irPrevDetected)
     {

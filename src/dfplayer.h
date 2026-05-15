@@ -24,7 +24,14 @@ uint8_t getNormalizedUltrasoundVolumePercent();
 SoundSequenceSettings getSoundSequenceSettings();
 bool setSoundSequenceSettings(const SoundSequenceSettings &settings);
 bool setDfPlayerVolume(uint8_t volume);
-bool startSoundSequence();
+
+enum class SequenceMode
+{
+    LOOP,
+    ONCE
+};
+
+bool startSoundSequence(SequenceMode mode = SequenceMode::LOOP);
 void stopSoundSequence();
 bool isSoundSequenceRunning();
 void updateDfPlayerScheduler();

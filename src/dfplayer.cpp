@@ -25,6 +25,7 @@ DFRobotDFPlayerMini dfPlayer;
 bool dfPlayerReady = false;
 uint8_t currentVolume = DFPLAYER_VOLUME;
 bool sequenceRunning = false;
+SequenceMode sequenceMode = SequenceMode::LOOP;
 size_t sequenceIndex = 0;
 unsigned long sequenceStepStartedAt = 0;
 bool sequenceStepActive = false;
@@ -540,9 +541,10 @@ bool playSoundByName(const String &soundName)
     return playResolvedSound(*definition);
 }
 
-bool startSoundSequence()
+bool startSoundSequence(SequenceMode mode)
 {
     setGlobalVolumePercent(sequenceSettings.startVolumePercent);
+    sequenceMode = mode;
 
     if (!dfPlayerReady)
     {
@@ -711,6 +713,13 @@ void updateDfPlayerScheduler()
         return;
     }
 
-    sequenceIndex = (sequenceIndex + 1) % stepCount;
+    const size_t nextIndex = sequenceIndex + 1;
+    if (nextIndex >= stepCount && sequenceMode == SequenceMode::ONCE)
+    {
+        stopSoundSequence();
+        Serial.println("DFPlayer sequence finished (once).");
+        return;
+    }
+    sequenceIndex = nextIndex % stepCount;
     sequenceStepActive = false;
 }

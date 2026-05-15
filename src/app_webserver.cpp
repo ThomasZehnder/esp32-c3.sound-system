@@ -452,9 +452,10 @@ void setSequence()
 
     if (action == "start")
     {
-        ok = startSoundSequence();
+        ok = startSoundSequence(SequenceMode::LOOP);
         if (ok && selectedSound)
         {
+            Serial.println("[WEB] Start Sequence in LOOP");
             *selectedSound = "sequence";
         }
     }
@@ -462,6 +463,7 @@ void setSequence()
     {
         stopSoundSequence();
         ok = true;
+        Serial.println("[WEB] Stop Sequence");
         if (selectedSound)
         {
             *selectedSound = "stop";
