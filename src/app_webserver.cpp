@@ -5,6 +5,7 @@
 #include <LittleFS.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <time.h>
 
 #include "dfplayer.h"
 #include "ir_sensor.h"
@@ -156,6 +157,27 @@ void assemblyJson()
     {
         output += ",\"rssi\":" + String(WiFi.RSSI());
     }
+
+    const time_t now = time(nullptr);
+    const bool ntpSynced = now > 1600000000UL;
+    output += ",\"ntpSynced\":" + String(ntpSynced ? "true" : "false");
+    if (ntpSynced)
+    {
+        struct tm utcInfo;
+        struct tm localInfo;
+        gmtime_r(&now, &utcInfo);
+        localtime_r(&now, &localInfo);
+
+        char utcStr[32];
+        char localStr[32];
+        strftime(utcStr, sizeof(utcStr), "%Y-%m-%dT%H:%M:%SZ", &utcInfo);
+        strftime(localStr, sizeof(localStr), "%Y-%m-%dT%H:%M:%S", &localInfo);
+
+        output += ",\"utcTime\":\"" + String(utcStr) + "\"";
+        output += ",\"localTime\":\"" + String(localStr) + "\"";
+        output += ",\"isDst\":" + String(localInfo.tm_isdst > 0 ? "true" : "false");
+    }
+
     output += "}";
 
     setAllowCors();

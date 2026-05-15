@@ -126,6 +126,8 @@ void setup()
     if (wifiConnected)
     {
         logBootStep("WiFi connected");
+        logBootStep("init NTP");
+        configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
     }
     else
     {
