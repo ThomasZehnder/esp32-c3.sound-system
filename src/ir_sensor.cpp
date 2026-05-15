@@ -23,7 +23,7 @@ void updateIrSensor()
     {
         Serial.print("[IR] pos edge: ");
         Serial.println(getIrDetectedString());
-        if (!isSoundSequenceRunning())
+        if (!isSoundSequenceRunning() && !isSequenceUserStopped())
         {
             Serial.print("[IR] Start Sound Sequence");
             startSoundSequence(SequenceMode::ONCE);

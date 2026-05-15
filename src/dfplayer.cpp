@@ -25,6 +25,7 @@ DFRobotDFPlayerMini dfPlayer;
 bool dfPlayerReady = false;
 uint8_t currentVolume = DFPLAYER_VOLUME;
 bool sequenceRunning = false;
+bool sequenceUserStopped = false;
 SequenceMode sequenceMode = SequenceMode::LOOP;
 size_t sequenceIndex = 0;
 unsigned long sequenceStepStartedAt = 0;
@@ -543,6 +544,7 @@ bool playSoundByName(const String &soundName)
 
 bool startSoundSequence(SequenceMode mode)
 {
+    sequenceUserStopped = false;
     setGlobalVolumePercent(sequenceSettings.startVolumePercent);
     sequenceMode = mode;
 
@@ -582,9 +584,20 @@ void stopSoundSequence()
     }
 }
 
+void stopSoundSequenceByUser()
+{
+    sequenceUserStopped = true;
+    stopSoundSequence();
+}
+
 bool isSoundSequenceRunning()
 {
     return sequenceRunning;
+}
+
+bool isSequenceUserStopped()
+{
+    return sequenceUserStopped;
 }
 
 int getSoundSequenceCurrentIndex()

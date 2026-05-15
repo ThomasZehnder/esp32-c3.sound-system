@@ -461,7 +461,7 @@ void setSequence()
     }
     else if (action == "stop")
     {
-        stopSoundSequence();
+        stopSoundSequenceByUser();
         ok = true;
         Serial.println("[WEB] Stop Sequence");
         if (selectedSound)
