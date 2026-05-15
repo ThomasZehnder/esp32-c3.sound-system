@@ -15,15 +15,17 @@ void initIrSensor()
 
 void updateIrSensor()
 {
-    irDetected = digitalRead(IR_PIN) == LOW;
+    irDetected = digitalRead(IR_PIN) == HIGH;
 
     if (irDetected && !irPrevDetected)
     {
-        Serial.println("[IR] pos edge: no animal");
+        Serial.print("[IR] pos edge: ");
+        Serial.println(getIrDetectedString());
     }
     else if (!irDetected && irPrevDetected)
     {
-        Serial.println("[IR] neg edge: animal detected");
+        Serial.print("[IR] neg edge:  ");
+        Serial.println(getIrDetectedString());
     }
 
     irPrevDetected = irDetected;
