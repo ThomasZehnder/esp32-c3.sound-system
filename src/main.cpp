@@ -6,6 +6,7 @@
 #include "display.h"
 #include "app_webserver.h"
 #include "ir_sensor.h"
+#include "mqtt_client.h"
 #include "ultrasound_pwm.h"
 
 // ====== PIN CONFIG ======
@@ -79,6 +80,7 @@ bool ledState = false;
 bool wifiConnected = false;
 bool filesystemMounted = false;
 String selectedSound = "none";
+bool lastSequenceRunning = false;
 
 void setup()
 {
@@ -128,6 +130,8 @@ void setup()
         logBootStep("WiFi connected");
         logBootStep("init NTP");
         configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
+        logBootStep("init MQTT");
+        setupMqttClient();
     }
     else
     {
@@ -161,6 +165,14 @@ void loop()
     handleWebServerClient();
     updateDfPlayerScheduler();
     updateUltrasoundPwm();
+    updateMqttClient();
+
+    const bool sequenceRunning = isSoundSequenceRunning();
+    if (sequenceRunning && !lastSequenceRunning)
+    {
+        publishAssemblyNow();
+    }
+    lastSequenceRunning = sequenceRunning;
 
     // ===== LED BLINK =====
     if (millis() - lastBlink > 500)

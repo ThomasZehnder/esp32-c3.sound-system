@@ -121,7 +121,9 @@ void registerStaticRoute(const char *routePath)
               { serveFileOr404(String(routePath)); });
 }
 
-void assemblyJson()
+} // namespace
+
+String getAssemblyJson()
 {
     if (wifiConnected)
     {
@@ -179,9 +181,16 @@ void assemblyJson()
     }
 
     output += "}";
+    return output;
+}
 
+namespace
+{
+
+void assemblyJson()
+{
     setAllowCors();
-    server.send(200, "application/json", output);
+    server.send(200, "application/json", getAssemblyJson());
 }
 
 void soundConfigJson()
