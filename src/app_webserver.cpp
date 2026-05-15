@@ -154,7 +154,8 @@ String getAssemblyJson()
     output += "\"localIp\":\"" + ipAddress + "\",";
     output += "\"macAddress\":\"" + macAddress + "\",";
     output += "\"irDetected\":" + String(isIrDetected() ? "true" : "false") + ",";
-    output += "\"irDetectedString\":\"" + String(getIrDetectedString()) + "\"";
+    output += "\"irDetectedString\":\"" + String(getIrDetectedString()) + "\",";
+    output += "\"animalCount\":" + String(getAnimalDetectedCount());
     if (isWifiConnected)
     {
         output += ",\"rssi\":" + String(WiFi.RSSI());

@@ -8,6 +8,7 @@ constexpr uint8_t IR_PIN = 2; // GPIO2; LOW = beam broken (object detected)
 
 bool irDetected = false;
 bool irPrevDetected = false;
+uint32_t animalDetectedCount = 0;
 }
 
 void initIrSensor()
@@ -21,6 +22,7 @@ void updateIrSensor()
 
     if (irDetected && !irPrevDetected)
     {
+        ++animalDetectedCount;
         Serial.print("[IR] pos edge: ");
         Serial.println(getIrDetectedString());
         if (!isSoundSequenceRunning() && !isSequenceUserStopped())
@@ -51,4 +53,9 @@ const char *getIrDetectedString()
 uint8_t getIrPin()
 {
     return IR_PIN;
+}
+
+uint32_t getAnimalDetectedCount()
+{
+    return animalDetectedCount;
 }
