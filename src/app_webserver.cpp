@@ -150,7 +150,8 @@ void assemblyJson()
     output += "\"ssid\":\"" + ssid + "\",";
     output += "\"localIp\":\"" + ipAddress + "\",";
     output += "\"macAddress\":\"" + macAddress + "\",";
-    output += "\"irDetected\":" + String(isIrDetected() ? "true" : "false");
+    output += "\"irDetected\":" + String(isIrDetected() ? "true" : "false") + ",";
+    output += "\"irDetectedString\":\"" + String(getIrDetectedString()) + "\"";
     if (isWifiConnected)
     {
         output += ",\"rssi\":" + String(WiFi.RSSI());

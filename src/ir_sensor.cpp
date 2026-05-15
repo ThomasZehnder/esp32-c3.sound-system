@@ -19,11 +19,11 @@ void updateIrSensor()
 
     if (irDetected && !irPrevDetected)
     {
-        Serial.println("[IR] pos edge: beam broken");
+        Serial.println("[IR] pos edge: no animal");
     }
     else if (!irDetected && irPrevDetected)
     {
-        Serial.println("[IR] neg edge: beam clear");
+        Serial.println("[IR] neg edge: animal detected");
     }
 
     irPrevDetected = irDetected;
@@ -32,6 +32,11 @@ void updateIrSensor()
 bool isIrDetected()
 {
     return irDetected;
+}
+
+const char *getIrDetectedString()
+{
+    return irDetected ? "animal detected" : "no animal";
 }
 
 uint8_t getIrPin()
