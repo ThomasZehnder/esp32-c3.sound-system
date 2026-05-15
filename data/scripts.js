@@ -174,6 +174,7 @@ function toggleSequenceEditorRow(row) {
     }
 
     const rowEnabled = enabled.checked;
+    row.classList.toggle('row-disabled', !rowEnabled);
     kind.disabled = !rowEnabled;
     duration.disabled = !rowEnabled;
     tag.disabled = !rowEnabled || kind.value === 'pause';
@@ -227,19 +228,19 @@ function renderSequenceEditor(container, config) {
             <div class="sequence-editor-row" data-step-index="${index}">
                 <div class="sequence-drag-handle" draggable="true" title="Drag to reorder">${index + 1}</div>
                 <div><input class="sequence-enabled" type="checkbox" ${enabled ? 'checked' : ''}></div>
-                <div>
+                <div class="sequence-cell-kind">
                     <select class="sequence-kind">
                         <option value="sound"${kind === 'sound' ? ' selected' : ''}>sound</option>
                         <option value="ultrasound"${kind === 'ultrasound' ? ' selected' : ''}>ultrasound</option>
                         <option value="pause"${kind === 'pause' ? ' selected' : ''}>pause</option>
                     </select>
                 </div>
-                <div>
+                <div class="sequence-cell-tag">
                     <select class="sequence-tag">
                         ${tagOptions}
                     </select>
                 </div>
-                <div>
+                <div class="sequence-cell-duration">
                     <input class="sequence-duration" type="number" min="1" step="1" value="${durationSeconds}">
                 </div>
             </div>

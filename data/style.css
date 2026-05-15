@@ -371,6 +371,12 @@ pre {
   opacity: 0.35;
 }
 
+.sequence-editor-row.row-disabled .sequence-cell-kind,
+.sequence-editor-row.row-disabled .sequence-cell-tag,
+.sequence-editor-row.row-disabled .sequence-cell-duration {
+  visibility: hidden;
+}
+
 #soundButtons {
   margin-top: 18px;
 }
