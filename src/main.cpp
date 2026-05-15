@@ -5,6 +5,7 @@
 #include "dfplayer.h"
 #include "display.h"
 #include "app_webserver.h"
+#include "ir_sensor.h"
 #include "ultrasound_pwm.h"
 
 // ====== PIN CONFIG ======
@@ -92,6 +93,7 @@ void setup()
     logBootStep("setup start");
 
     pinMode(LED_PIN, OUTPUT);
+    initIrSensor();
 
     // Init display
     logBootStep("init display");
@@ -153,6 +155,7 @@ void setup()
 void loop()
 {
     wifiConnected = WiFi.status() == WL_CONNECTED;
+    updateIrSensor();
     handleWebServerClient();
     updateDfPlayerScheduler();
     updateUltrasoundPwm();

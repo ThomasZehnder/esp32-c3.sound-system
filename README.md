@@ -30,6 +30,22 @@ Optional:
 * Use DFPlayer DAC_R and DAC_L instead of SPK_1 and SPK_2 when connecting an external amplifier.
 * BUSY is currently not connected in software.
 
+### IR Sensor SR505 Wiring
+
+Current software configuration for the IR sensor is defined in [src/ir_sensor.cpp](src/ir_sensor.cpp):
+
+* ESP32-C3 GPIO0 <- SR505 OUT
+* ESP32-C3 3.3V -> SR505 VCC
+* ESP32-C3 GND -> SR505 GND
+
+Notes:
+
+* GPIO0 is configured as INPUT_PULLUP.
+* The SR505 output is active-HIGH: it pulls its OUT pin HIGH when motion is detected.
+* The firmware reads LOW on GPIO0 as "detected" — wire the SR505 OUT pin through an inverter (e.g. a single NPN transistor with a pull-up resistor) or adjust the polarity in [src/ir_sensor.cpp](src/ir_sensor.cpp) if the module is active-HIGH.
+* Alternatively, if your SR505 module has an open-collector output, the internal pull-up on GPIO0 is sufficient and no external components are needed.
+* Serial output is printed on positive edge (beam broken) and negative edge (beam clear) for debugging.
+
 ### Ultrasound Output Note
 
 Current software uses GPIO1 for the ultrasound PWM output.

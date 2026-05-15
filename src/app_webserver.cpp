@@ -7,6 +7,7 @@
 #include <WiFi.h>
 
 #include "dfplayer.h"
+#include "ir_sensor.h"
 #include "ultrasound_pwm.h"
 
 namespace
@@ -148,7 +149,8 @@ void assemblyJson()
     output += "\"selectedSound\":\"" + (selectedSound ? *selectedSound : String("none")) + "\",";
     output += "\"ssid\":\"" + ssid + "\",";
     output += "\"localIp\":\"" + ipAddress + "\",";
-    output += "\"macAddress\":\"" + macAddress + "\"";
+    output += "\"macAddress\":\"" + macAddress + "\",";
+    output += "\"irDetected\":" + String(isIrDetected() ? "true" : "false");
     if (isWifiConnected)
     {
         output += ",\"rssi\":" + String(WiFi.RSSI());
