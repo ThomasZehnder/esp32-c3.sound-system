@@ -34,16 +34,17 @@ Optional:
 
 Current software configuration for the IR sensor is defined in [src/ir_sensor.cpp](src/ir_sensor.cpp):
 
-* ESP32-C3 GPIO0 <- SR505 OUT
+* ESP32-C3 GPIO2 <- SR505 OUT
 * ESP32-C3 3.3V -> SR505 VCC
 * ESP32-C3 GND -> SR505 GND
 
 Notes:
 
-* GPIO0 is configured as INPUT_PULLUP.
+* GPIO2 is configured as INPUT_PULLUP.
+* Avoid GPIO0 on the ESP32-C3 SuperMini — it has an on-board 10 kΩ pull-down resistor that conflicts with INPUT_PULLUP and can cause crashes.
 * The SR505 output is active-HIGH: it pulls its OUT pin HIGH when motion is detected.
-* The firmware reads LOW on GPIO0 as "detected" — wire the SR505 OUT pin through an inverter (e.g. a single NPN transistor with a pull-up resistor) or adjust the polarity in [src/ir_sensor.cpp](src/ir_sensor.cpp) if the module is active-HIGH.
-* Alternatively, if your SR505 module has an open-collector output, the internal pull-up on GPIO0 is sufficient and no external components are needed.
+* The firmware reads LOW on GPIO2 as "detected" — wire the SR505 OUT pin through an inverter (e.g. a single NPN transistor with a pull-up resistor) or adjust the polarity in [src/ir_sensor.cpp](src/ir_sensor.cpp) if the module is active-HIGH.
+* Alternatively, if your SR505 module has an open-collector output, the internal pull-up on GPIO2 is sufficient and no external components are needed.
 * Serial output is printed on positive edge (beam broken) and negative edge (beam clear) for debugging.
 
 ### Ultrasound Output Note

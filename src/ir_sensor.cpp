@@ -2,7 +2,7 @@
 
 namespace
 {
-constexpr uint8_t IR_PIN = 0; // GPIO0; LOW = beam broken (object detected)
+constexpr uint8_t IR_PIN = 2; // GPIO2; LOW = beam broken (object detected)
 
 bool irDetected = false;
 bool irPrevDetected = false;
