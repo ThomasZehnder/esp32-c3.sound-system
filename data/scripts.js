@@ -225,7 +225,7 @@ function renderSequenceEditor(container, config) {
 
         return `
             <div class="sequence-editor-row" data-step-index="${index}">
-                <div>${index + 1}</div>
+                <div class="sequence-drag-handle" draggable="true" title="Drag to reorder">${index + 1}</div>
                 <div><input class="sequence-enabled" type="checkbox" ${enabled ? 'checked' : ''}></div>
                 <div>
                     <select class="sequence-kind">
@@ -266,6 +266,50 @@ function renderSequenceEditor(container, config) {
         });
         updateSequenceTagOptions(row, sounds, ultrasounds);
         toggleSequenceEditorRow(row);
+    });
+
+    wireSequenceDragDrop(container);
+}
+
+function wireSequenceDragDrop(container) {
+    let draggingRow = null;
+
+    function getRowAfterY(y) {
+        const rows = [...container.querySelectorAll('.sequence-editor-row:not(.dragging)')];
+        return rows.reduce((closest, row) => {
+            const rect = row.getBoundingClientRect();
+            const offset = y - rect.top - rect.height / 2;
+            return offset < 0 && offset > closest.offset ? { offset, element: row } : closest;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    container.addEventListener('dragstart', (e) => {
+        const handle = e.target.closest('.sequence-drag-handle');
+        if (!handle) return;
+        draggingRow = handle.closest('.sequence-editor-row');
+        if (!draggingRow) return;
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => draggingRow.classList.add('dragging'), 0);
+    });
+
+    container.addEventListener('dragover', (e) => {
+        if (!draggingRow) return;
+        e.preventDefault();
+        const afterRow = getRowAfterY(e.clientY);
+        if (afterRow) {
+            container.insertBefore(draggingRow, afterRow);
+        } else {
+            container.appendChild(draggingRow);
+        }
+    });
+
+    container.addEventListener('dragend', () => {
+        if (!draggingRow) return;
+        draggingRow.classList.remove('dragging');
+        draggingRow = null;
+        container.querySelectorAll('.sequence-drag-handle').forEach((handle, i) => {
+            handle.textContent = i + 1;
+        });
     });
 }
 
