@@ -17,22 +17,30 @@ void initLedStrip()
     strip.show();
 }
 
-void updateLedStrip(bool sequenceRunning)
+void updateLedStrip(LedStripState state)
 {
-    static bool lastSequenceRunning = false;
+    static LedStripState lastState = LedStripState::IDLE;
 
-    if (sequenceRunning == lastSequenceRunning)
+    if (state == lastState)
         return;
 
-    lastSequenceRunning = sequenceRunning;
+    lastState = state;
 
-    if (sequenceRunning)
+    switch (state)
     {
-        strip.fill(strip.Color(255, 255, 255));
-    }
-    else
-    {
-        strip.fill(0);
+    case LedStripState::SOUND:
+        strip.fill(strip.Color(255, 255, 255)); // white
+        break;
+    case LedStripState::ULTRASOUND:
+        strip.fill(strip.Color(0, 0, 255)); // blue
+        break;
+    case LedStripState::PAUSE:
+        strip.fill(strip.Color(0, 255, 0)); // green
+        break;
+    case LedStripState::IDLE:
+    default:
+        strip.fill(0); // off
+        break;
     }
     strip.show();
 }

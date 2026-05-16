@@ -1,4 +1,12 @@
 #pragma once
 
+enum class LedStripState
+{
+    IDLE,
+    SOUND,
+    ULTRASOUND,
+    PAUSE
+};
+
 void initLedStrip();
-void updateLedStrip(bool sequenceRunning);
+void updateLedStrip(LedStripState state);

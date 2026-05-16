@@ -177,7 +177,25 @@ void loop()
         publishAssemblyNow();
     }
     lastSequenceRunning = sequenceRunning;
-    updateLedStrip(sequenceRunning);
+
+    LedStripState ledState = LedStripState::IDLE;
+    if (sequenceRunning)
+    {
+        const int stepIndex = getSoundSequenceCurrentIndex();
+        size_t stepCount = 0;
+        const SoundSequenceStep *steps = getSoundSequence(stepCount);
+        if (stepIndex >= 0 && static_cast<size_t>(stepIndex) < stepCount)
+        {
+            const char *kind = steps[stepIndex].kind;
+            if (strcmp(kind, "ultrasound") == 0)
+                ledState = LedStripState::ULTRASOUND;
+            else if (strcmp(kind, "pause") == 0)
+                ledState = LedStripState::PAUSE;
+            else
+                ledState = LedStripState::SOUND;
+        }
+    }
+    updateLedStrip(ledState);
 
     // ===== LED BLINK =====
     if (millis() - lastBlink > 500)
