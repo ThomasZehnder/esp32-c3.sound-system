@@ -8,6 +8,7 @@
 #include "ir_sensor.h"
 #include "mqtt_client.h"
 #include "ultrasound_pwm.h"
+#include "led_strip.h"
 
 // ====== PIN CONFIG ======
 #define LED_PIN 8 // blue led on ESP32-C3-DevKitM-1, GPIO8, is connected to GND via a resistor, so HIGH turns it ON
@@ -122,6 +123,9 @@ void setup()
     logBootStep("init ultrasound");
     initUltrasoundPwm();
 
+    logBootStep("init LED strip");
+    initLedStrip();
+
     logBootStep("start WiFi");
     WiFi.mode(WIFI_STA);
     wifiConnected = connectToConfiguredWifi();
@@ -173,6 +177,7 @@ void loop()
         publishAssemblyNow();
     }
     lastSequenceRunning = sequenceRunning;
+    updateLedStrip(sequenceRunning);
 
     // ===== LED BLINK =====
     if (millis() - lastBlink > 500)
