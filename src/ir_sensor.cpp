@@ -40,7 +40,7 @@ void updateIrSensor()
         preferences.putUInt(NVS_KEY_COUNT, animalDetectedCount);
         Serial.print("[IR] pos edge: ");
         Serial.println(getIrDetectedString());
-        if (!isSoundSequenceRunning() && !isSequenceUserStopped())
+        if (!isSoundSequenceRunning())
         {
             Serial.print("[IR] Start Sound Sequence");
             startSoundSequence(SequenceMode::ONCE);

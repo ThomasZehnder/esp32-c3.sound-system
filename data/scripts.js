@@ -556,7 +556,7 @@ function renderSequenceControl(container, soundConfig) {
         }
     });
 
-    stopButton.disabled = !soundConfig.sequenceRunning;
+    stopButton.disabled = false;
     stopButton.addEventListener('click', async () => {
         const statusElement = document.getElementById('soundStatus');
         if (statusElement) {

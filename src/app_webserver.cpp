@@ -481,6 +481,11 @@ void setSequence()
     }
 
     const String action = server.arg("action");
+    Serial.print("[WEB] /sequence action=");
+    Serial.print(action);
+    Serial.print(" sequenceRunning=");
+    Serial.println(isSoundSequenceRunning() ? "true" : "false");
+
     bool ok = false;
 
     if (action == "start")
@@ -496,7 +501,8 @@ void setSequence()
     {
         stopSoundSequenceByUser();
         ok = true;
-        Serial.println("[WEB] Stop Sequence");
+        Serial.print("[WEB] Stop Sequence called, sequenceRunning after=");
+        Serial.println(isSoundSequenceRunning() ? "true" : "false");
         if (selectedSound)
         {
             *selectedSound = "stop";
