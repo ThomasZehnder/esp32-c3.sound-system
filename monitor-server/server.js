@@ -65,7 +65,12 @@ app.get('/', (req, res) => {
     .log-err { color: red; font-size: 0.8rem; }
     .panel-right { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .panel-right h2 { margin: 0; padding: 0.4rem 0.75rem; font-size: 0.75rem; color: #555; background: #161616; border-bottom: 1px solid #222; }
-    #json-view { flex: 1; width: 100%; border: none; outline: none; background: #111; color: #0f0; font-family: monospace; font-size: 0.85rem; padding: 0.75rem; resize: none; }
+    #json-view { flex: 1; overflow: auto; background: #111; font-family: monospace; font-size: 0.85rem; padding: 0.75rem; margin: 0; }
+    .jk { color: #fff; }
+    .js { color: #0f0; }
+    .jn { color: #ff0; }
+    .jb { color: #ff0; }
+    .jnull { color: #ff0; }
   </style>
 </head>
 <body>
@@ -77,7 +82,7 @@ app.get('/', (req, res) => {
     </div>
     <div class="panel-right">
       <h2>JSON</h2>
-      <textarea id="json-view" readonly></textarea>
+      <pre id="json-view"></pre>
     </div>
   </div>
   <script>
@@ -85,6 +90,23 @@ app.get('/', (req, res) => {
     const log = document.getElementById('log');
     const jsonView = document.getElementById('json-view');
     let activeItem = null;
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function highlight(json) {
+      return escapeHtml(json).replace(
+        /("(\\\\.|[^"\\\\])*"\\s*:)|("(\\\\.|[^"\\\\])*")|(\\b(true|false)\\b)|(\\bnull\\b)|(-?\\d+(?:\\.\\d+)?(?:[eE][+\\-]?\\d+)?)/g,
+        (m) => {
+          if (/:$/.test(m))  return '<span class="jk">' + m + '</span>';
+          if (m[0] === '"')  return '<span class="js">' + m + '</span>';
+          if (m === 'true' || m === 'false') return '<span class="jb">' + m + '</span>';
+          if (m === 'null')  return '<span class="jnull">' + m + '</span>';
+          return '<span class="jn">' + m + '</span>';
+        }
+      );
+    }
 
     function countElements(obj) {
       if (Array.isArray(obj)) return obj.length + ' items';
@@ -96,7 +118,7 @@ app.get('/', (req, res) => {
       if (activeItem) activeItem.classList.remove('active');
       activeItem = li;
       li.classList.add('active');
-      jsonView.value = pretty;
+      jsonView.innerHTML = highlight(pretty);
     }
 
     es.onmessage = (e) => {
