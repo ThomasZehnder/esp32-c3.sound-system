@@ -178,6 +178,7 @@ void loop()
     }
     lastSequenceRunning = sequenceRunning;
 
+    bool liveLedState = false;
     LedStripState ledState = LedStripState::IDLE;
     if (sequenceRunning)
     {
@@ -201,9 +202,9 @@ void loop()
     if (millis() - lastBlink > 500)
     {
         lastBlink = millis();
-        ledState = !ledState;
-        digitalWrite(LED_PIN, ledState);
-        //Serial.println(String("LED state changed: ") + (ledState ? "ON" : "OFF"));
+        liveLedState = !liveLedState;
+        digitalWrite(LED_PIN, liveLedState);
+        //Serial.println(String("LED state changed: ") + (liveLedState ? "ON" : "OFF"));
     }
 
     // ===== DISPLAY UPDATE =====
@@ -213,7 +214,7 @@ void loop()
     String ipAddress = WiFi.localIP().toString();
     String audioStatusText;
 
-    snprintf(ledText, sizeof(ledText), "LED: %s", ledState ? "ON" : "OFF");
+    snprintf(ledText, sizeof(ledText), "LED: %s", liveLedState ? "ON" : "OFF");
     snprintf(millisText, sizeof(millisText), "%lus", millis() / 1000);
     snprintf(networkText, sizeof(networkText), "%s", wifiConnected ? ipAddress.c_str() : "No WiFi");
 
