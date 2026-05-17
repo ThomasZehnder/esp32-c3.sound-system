@@ -19,12 +19,13 @@ mqttClient.on('connect', () => {
   });
 });
 
-mqttClient.on('message', (topic, message) => {
+mqttClient.on('message', (topic, message, packet) => {
   const raw = message.toString();
   let payload;
   try { payload = JSON.parse(raw); } catch (_) { payload = raw; }
-  console.log(`[${topic}]`, payload);
-  lastMessage = { topic, payload, ts: Date.now() };
+  const retained = !!packet.retain;
+  console.log(`[${topic}]${retained ? ' (retained)' : ''}`, payload);
+  lastMessage = { topic, payload, ts: Date.now(), retained };
   const data = `data: ${JSON.stringify(lastMessage)}\n\n`;
   for (const res of clients) res.write(data);
 });
@@ -99,7 +100,7 @@ app.get('/', (req, res) => {
     }
 
     es.onmessage = (e) => {
-      const { payload, ts } = JSON.parse(e.data);
+      const { payload, ts, retained } = JSON.parse(e.data);
       const pretty = JSON.stringify(payload, null, 2);
       const byteLen = new TextEncoder().encode(pretty).length;
       const info = countElements(payload) + ' · ' + byteLen + ' B';
@@ -107,7 +108,7 @@ app.get('/', (req, res) => {
       const li = document.createElement('li');
       const tsSpan = document.createElement('span');
       tsSpan.className = 'log-ts';
-      tsSpan.textContent = new Date(ts).toLocaleTimeString();
+      tsSpan.textContent = new Date(ts).toLocaleTimeString() + (retained ? ' · retained' : '');
       const infoSpan = document.createElement('span');
       infoSpan.className = 'log-info';
       infoSpan.textContent = info;

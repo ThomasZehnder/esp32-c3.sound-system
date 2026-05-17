@@ -73,7 +73,7 @@ void publishAssemblyNow()
 
     const String topic = buildTopic();
     const String payload = getAssemblyJson();
-    const bool ok = mqttClient.publish(topic.c_str(), payload.c_str());
+    const bool ok = mqttClient.publish(topic.c_str(), payload.c_str(), true);
     lastPublishMs = millis();
 
     Serial.print("[MQTT] Publish ");
