@@ -69,6 +69,27 @@ The current software uses the recommended numbered folder structure:
 
 If you want to add more groups later, use folders like /02, /03, ... with numbered files inside them.
 
+## MQTT Monitor
+
+A small Node.js web server that subscribes to the device topic and displays incoming JSON messages in real time.
+
+![MQTT Monitor](images/mqtt-moitor.png)
+
+### Run
+
+```bash
+cd monitor-server
+npm install
+npm start
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+The left panel shows a log of incoming messages with timestamp and payload size. The right panel shows the formatted JSON of the selected message. If the device publishes with `retain: true`, the last value is displayed immediately on load without waiting for the next publish.
+
+**Topic:** `soundsystem/10B41D655F68/assembly`  
+**Broker:** `broker.emqx.io`
+
 ## Use PlatformIO
 
 In VSCode see elements in the buttom left corner to transfer projekt to arduino board.
