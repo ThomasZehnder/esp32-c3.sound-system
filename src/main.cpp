@@ -6,7 +6,9 @@
 #include "display.h"
 #include "app_webserver.h"
 #include "ir_sensor.h"
+#include "mqtt_client.h"
 #include "ultrasound_pwm.h"
+#include "led_strip.h"
 
 // ====== PIN CONFIG ======
 #define LED_PIN 8 // blue led on ESP32-C3-DevKitM-1, GPIO8, is connected to GND via a resistor, so HIGH turns it ON
@@ -79,6 +81,7 @@ bool ledState = false;
 bool wifiConnected = false;
 bool filesystemMounted = false;
 String selectedSound = "none";
+bool lastSequenceRunning = false;
 
 void setup()
 {
@@ -120,12 +123,19 @@ void setup()
     logBootStep("init ultrasound");
     initUltrasoundPwm();
 
+    logBootStep("init LED strip");
+    initLedStrip();
+
     logBootStep("start WiFi");
     WiFi.mode(WIFI_STA);
     wifiConnected = connectToConfiguredWifi();
     if (wifiConnected)
     {
         logBootStep("WiFi connected");
+        logBootStep("init NTP");
+        configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
+        logBootStep("init MQTT");
+        setupMqttClient();
     }
     else
     {
@@ -159,14 +169,42 @@ void loop()
     handleWebServerClient();
     updateDfPlayerScheduler();
     updateUltrasoundPwm();
+    updateMqttClient();
+
+    const bool sequenceRunning = isSoundSequenceRunning();
+    if (sequenceRunning && !lastSequenceRunning)
+    {
+        publishAssemblyNow();
+    }
+    lastSequenceRunning = sequenceRunning;
+
+    bool liveLedState = false;
+    LedStripState ledState = LedStripState::IDLE;
+    if (sequenceRunning)
+    {
+        const int stepIndex = getSoundSequenceCurrentIndex();
+        size_t stepCount = 0;
+        const SoundSequenceStep *steps = getSoundSequence(stepCount);
+        if (stepIndex >= 0 && static_cast<size_t>(stepIndex) < stepCount)
+        {
+            const char *kind = steps[stepIndex].kind;
+            if (strcmp(kind, "ultrasound") == 0)
+                ledState = LedStripState::ULTRASOUND;
+            else if (strcmp(kind, "pause") == 0)
+                ledState = LedStripState::PAUSE;
+            else
+                ledState = LedStripState::SOUND;
+        }
+    }
+    updateLedStrip(ledState);
 
     // ===== LED BLINK =====
     if (millis() - lastBlink > 500)
     {
         lastBlink = millis();
-        ledState = !ledState;
-        digitalWrite(LED_PIN, ledState);
-        //Serial.println(String("LED state changed: ") + (ledState ? "ON" : "OFF"));
+        liveLedState = !liveLedState;
+        digitalWrite(LED_PIN, liveLedState);
+        //Serial.println(String("LED state changed: ") + (liveLedState ? "ON" : "OFF"));
     }
 
     // ===== DISPLAY UPDATE =====
@@ -176,7 +214,7 @@ void loop()
     String ipAddress = WiFi.localIP().toString();
     String audioStatusText;
 
-    snprintf(ledText, sizeof(ledText), "LED: %s", ledState ? "ON" : "OFF");
+    snprintf(ledText, sizeof(ledText), "LED: %s", liveLedState ? "ON" : "OFF");
     snprintf(millisText, sizeof(millisText), "%lus", millis() / 1000);
     snprintf(networkText, sizeof(networkText), "%s", wifiConnected ? ipAddress.c_str() : "No WiFi");
 

@@ -33,7 +33,9 @@ enum class SequenceMode
 
 bool startSoundSequence(SequenceMode mode = SequenceMode::LOOP);
 void stopSoundSequence();
+void stopSoundSequenceByUser();
 bool isSoundSequenceRunning();
+bool isSequenceUserStopped();
 void updateDfPlayerScheduler();
 int getSoundSequenceCurrentIndex();
 bool isSoundSequenceStepActive();

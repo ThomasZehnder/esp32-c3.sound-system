@@ -334,6 +334,49 @@ pre {
   transform: scale(1.15);
 }
 
+.sequence-drag-handle {
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(148, 163, 184, 0.07);
+  color: var(--muted);
+  font-size: 0.78rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.sequence-drag-handle::before {
+  content: '\28FF';
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.sequence-drag-handle:hover {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: var(--text);
+}
+
+.sequence-drag-handle:active {
+  cursor: grabbing;
+}
+
+.sequence-editor-row.dragging {
+  opacity: 0.35;
+}
+
+.sequence-editor-row.row-disabled .sequence-cell-kind,
+.sequence-editor-row.row-disabled .sequence-cell-tag,
+.sequence-editor-row.row-disabled .sequence-cell-duration {
+  visibility: hidden;
+}
+
 #soundButtons {
   margin-top: 18px;
 }

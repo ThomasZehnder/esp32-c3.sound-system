@@ -47,6 +47,32 @@ Notes:
 * Alternatively, if your SR505 module has an open-collector output, the internal pull-up on GPIO2 is sufficient and no external components are needed.
 * Serial output is printed on positive edge (beam broken) and negative edge (beam clear) for debugging.
 
+### LED Strip Wiring
+
+Current software configuration for the LED strip is defined in [src/led_strip.cpp](src/led_strip.cpp):
+
+* ESP32-C3 GPIO10 -> LED strip DIN
+* ESP32-C3 5V -> LED strip VCC
+* ESP32-C3 GND -> LED strip GND
+
+Notes:
+
+* The strip uses the WS2812B protocol (NeoPixel, GRB color order, 800 kHz).
+* Default strip length is 8 LEDs — adjust `LED_STRIP_COUNT` in [src/led_strip.cpp](src/led_strip.cpp) to match your strip.
+* A 300–500 Ω resistor in series on the data line (GPIO10 → DIN) is recommended to suppress ringing.
+* Power the strip from 5V, not 3.3V.
+* For strips longer than ~8 LEDs add a dedicated 5V supply and connect its GND to the ESP32-C3 GND.
+* Library used: `Adafruit NeoPixel`.
+
+LED states:
+
+| State | Color |
+|-------|-------|
+| IDLE | Off |
+| SOUND | White |
+| ULTRASOUND | Blue |
+| PAUSE | Green |
+
 ### Ultrasound Output Note
 
 Current software uses GPIO1 for the ultrasound PWM output.
@@ -68,6 +94,27 @@ The current software uses the recommended numbered folder structure:
 * /sound?name=stop -> stop playback
 
 If you want to add more groups later, use folders like /02, /03, ... with numbered files inside them.
+
+## MQTT Monitor
+
+A small Node.js web server that subscribes to the device topic and displays incoming JSON messages in real time.
+
+![MQTT Monitor](images/mqtt-moitor.png)
+
+### Run
+
+```bash
+cd monitor-server
+npm install
+npm start
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+The left panel shows a log of incoming messages with timestamp and payload size. The right panel shows the formatted JSON of the selected message. If the device publishes with `retain: true`, the last value is displayed immediately on load without waiting for the next publish.
+
+**Topic:** `soundsystem/10B41D655F68/assembly`  
+**Broker:** `broker.emqx.io`
 
 ## Use PlatformIO
 

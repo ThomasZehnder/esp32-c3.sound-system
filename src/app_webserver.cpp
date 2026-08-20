@@ -5,6 +5,7 @@
 #include <LittleFS.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <time.h>
 
 #include "dfplayer.h"
 #include "ir_sensor.h"
@@ -120,7 +121,9 @@ void registerStaticRoute(const char *routePath)
               { serveFileOr404(String(routePath)); });
 }
 
-void assemblyJson()
+} // namespace
+
+String getAssemblyJson()
 {
     if (wifiConnected)
     {
@@ -151,15 +154,45 @@ void assemblyJson()
     output += "\"localIp\":\"" + ipAddress + "\",";
     output += "\"macAddress\":\"" + macAddress + "\",";
     output += "\"irDetected\":" + String(isIrDetected() ? "true" : "false") + ",";
-    output += "\"irDetectedString\":\"" + String(getIrDetectedString()) + "\"";
+    output += "\"irDetectedString\":\"" + String(getIrDetectedString()) + "\",";
+    output += "\"animalCount\":" + String(getAnimalDetectedCount()) + ",";
+    output += "\"bootCount\":" + String(getBootCount());
     if (isWifiConnected)
     {
         output += ",\"rssi\":" + String(WiFi.RSSI());
     }
-    output += "}";
 
+    const time_t now = time(nullptr);
+    const bool ntpSynced = now > 1600000000UL;
+    output += ",\"ntpSynced\":" + String(ntpSynced ? "true" : "false");
+    if (ntpSynced)
+    {
+        struct tm utcInfo;
+        struct tm localInfo;
+        gmtime_r(&now, &utcInfo);
+        localtime_r(&now, &localInfo);
+
+        char utcStr[32];
+        char localStr[32];
+        strftime(utcStr, sizeof(utcStr), "%Y-%m-%dT%H:%M:%SZ", &utcInfo);
+        strftime(localStr, sizeof(localStr), "%Y-%m-%dT%H:%M:%S", &localInfo);
+
+        output += ",\"utcTime\":\"" + String(utcStr) + "\"";
+        output += ",\"localTime\":\"" + String(localStr) + "\"";
+        output += ",\"isDst\":" + String(localInfo.tm_isdst > 0 ? "true" : "false");
+    }
+
+    output += "}";
+    return output;
+}
+
+namespace
+{
+
+void assemblyJson()
+{
     setAllowCors();
-    server.send(200, "application/json", output);
+    server.send(200, "application/json", getAssemblyJson());
 }
 
 void soundConfigJson()
@@ -448,6 +481,11 @@ void setSequence()
     }
 
     const String action = server.arg("action");
+    Serial.print("[WEB] /sequence action=");
+    Serial.print(action);
+    Serial.print(" sequenceRunning=");
+    Serial.println(isSoundSequenceRunning() ? "true" : "false");
+
     bool ok = false;
 
     if (action == "start")
@@ -461,9 +499,10 @@ void setSequence()
     }
     else if (action == "stop")
     {
-        stopSoundSequence();
+        stopSoundSequenceByUser();
         ok = true;
-        Serial.println("[WEB] Stop Sequence");
+        Serial.print("[WEB] Stop Sequence called, sequenceRunning after=");
+        Serial.println(isSoundSequenceRunning() ? "true" : "false");
         if (selectedSound)
         {
             *selectedSound = "stop";
